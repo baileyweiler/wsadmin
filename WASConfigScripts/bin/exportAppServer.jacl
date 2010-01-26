@@ -1,0 +1,92 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# Get special end points data for the 
+# appServer that will be exported
+#-----------------------------------------------------------
+
+
+proc copyServerIndex {exportDir cell node appServer} {
+   global AdminConfig openId
+
+   set Nametag Name
+   set EPtag EPName
+   set Hosttag Host
+   set Porttag Port
+   set Counttag Count
+   set count 0
+
+   puts "Getting info for cell $cell node $node and server $appServer"
+   # get all the server data to be added to serverindex on the target machine
+   set temp [catch {$AdminConfig getid /Node:$node/ServerIndex:/} si]
+   puts "Server index is $si"
+   set temp [catch {$AdminConfig list ServerEntry $si} ses]
+   puts "Server entries are $ses"
+   foreach se $ses {
+      puts "Server entry is $se"
+      set temp [catch {$AdminConfig showAttribute $se serverName} sName]
+      if {$sName == $appServer} {
+         # write to the properties file
+         puts $openId "#End Point datas for $appServer"
+         puts $openId "$appServer$Nametag=$appServer"
+
+         # get the specialEndpoints datas
+         set seps [lindex [$AdminConfig showAttribute $se specialEndpoints] 0]
+         puts "Special end points is $seps"
+         set epLen [llength $seps]
+         set count 0
+         foreach sep $seps {
+           puts "Special end point is $sep"
+           set temp [catch {$AdminConfig showAttribute $sep endPointName} epName] 
+           puts "End point name is $epName"
+           set temp [catch {$AdminConfig showAttribute $sep endPoint} eps]
+           puts "End points are $eps"
+           puts $openId "$appServer$EPtag$count=$epName"
+           foreach ep $eps {
+              puts "End point is $ep"
+              set temp [catch {$AdminConfig showAttribute $ep host} host]
+              puts "Host is $host"
+              set temp [catch {$AdminConfig showAttribute $ep port} port]
+              puts "Port is $port"
+              puts $openId "$appServer$Hosttag$epName=$host"
+              puts $openId "$appServer$Porttag$epName=$port"
+           }
+           incr count 1
+         }  
+      }  
+   } 
+   puts $openId "$appServer$EPtag$Counttag=$count"
+   puts $openId "\n\n"
+}
+
+if {$argc != 4} {
+   puts "exportAppServer: This script requires 4 parameters: export directory, cell, node, and application server"
+   puts "eg: exportAppServer /exportDir testCell testNode server1"
+   exit
+} else {
+   set exportDir [lindex $argv 0]
+   set cell [lindex $argv 1]
+   set node [lindex $argv 2]
+   set appServer [lindex $argv 3] 
+
+   # Open appserver.properties in the export directory for write access
+   puts "Creating appserver.properties file in $exportDir"
+   set openId [open $exportDir/appserver.properties w]
+
+   if {$appServer == "null"} {
+      # import all servers in the node
+      set temp [catch {$AdminConfig getid /Node:$node/Server:/} servers]
+      puts "Server config ids for node $node are $servers"
+      foreach server $servers {
+         copyServerIndex $exportDir $cell $node $server
+      }
+   } else {
+      copyServerIndex $exportDir $cell $node $appServer
+   }
+}
+
+close $openId
+

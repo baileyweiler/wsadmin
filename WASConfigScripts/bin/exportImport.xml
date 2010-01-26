@@ -1,0 +1,1628 @@
+<!-- ******************************************************************************** -->
+<!-- This program may be used, executed, copied, modified and distributed             -->
+<!-- without royalty for the purpose of developing, using, marketing, or distribution -->
+<!-- ******************************************************************************** -->
+
+
+<project name="exportImport" default="exportImport" basedir=".">
+
+  <!-- set global properties for this build -->
+  <property environment="env"/>
+  <property name="wasHome" value="${env.WAS_HOME}"/>
+  <property name="configRoot" value="${env.CONFIG_ROOT}"/>
+  <property name="cell" value="${env.WAS_CELL}"/>
+  <property name="node" value="${env.WAS_NODE}"/>
+  <property name="param" value="null"/>
+  <property name="alias" value="null"/>
+  <property name="classpath" value="null"/>
+  <property name="nativepath" value="null"/>
+
+  <taskdef name="wsadmin" classname="com.ibm.websphere.ant.tasks.WsAdmin"/>
+ 
+
+  <!-- *********************** -->
+  <!-- Do parameter checking   -->
+  <!-- *********************** -->
+
+  <target name="checkRelease" description="check if release is not 6x">
+    <wsadmin conntype="NONE" 
+       script="ValidateRelease.jacl">
+    </wsadmin>
+
+     <condition property="release6">
+	<available file="version6.log"/>
+     </condition>    	
+     <fail message="Your try to run the script on WebSphere Version 5 environment. If your environment is WebSphere Version 5 please get the script for Version 5. This script can only be run from WebSphere Version 6 or mixed cell with dmgr Version 6 environment" unless="release6"/>      
+  </target>
+
+  <target name="checkNodeRelease" description="check if nodeRelease was passed in correctly">
+     <condition property="nodeRelease.exist">
+        <isset property="nodeRelease"/>
+     </condition>    
+     <fail message="The 'nodeRelease' is not set. Run the command again passing in nodeRelease as a property -DnodeRelease=nodeReleaseValue"
+                   unless="nodeRelease.exist"/>
+  </target>
+
+
+  <target name="checkOldHost" description="check if oldHostName was passed in correctly">
+     <condition property="oldHostName.exist">
+        <isset property="oldHostName"/>
+     </condition>    
+     <fail message="The 'oldHostName' is not set. Run the command again passing in oldHostName as a property -DoldHostName=oldHostNameValue"
+                   unless="oldHostName.exist"/>
+  </target>
+
+
+  <target name="checkNewHost" description="check if newHostName was passed in correctly">
+     <condition property="newHostName.exist">
+        <isset property="newHostName"/>
+     </condition>    
+     <fail message="The 'newHostName' is not set. Run the command again passing in newHostName as a property -DnewHostName=newhostnameValue"
+                   unless="newHostName.exist"/>
+  </target>
+
+
+  <target name="checkOldProfile" description="check if oldProfileName was passed in correctly">
+     <condition property="oldProfileName.exist">
+        <isset property="oldProfileName"/>
+     </condition>    
+     <fail message="The 'oldProfileName' is not set. Run the command again passing in oldProfileName as a property -DoldProfileName=oldProfileNameValue"
+                   unless="oldProfileName.exist"/>
+  </target>
+
+
+  <target name="checkNewProfile" description="check if newProfileName was passed in correctly">
+     <condition property="newProfileName.exist">
+        <isset property="newProfileName"/>
+     </condition>    
+     <fail message="The 'newProfileName' is not set. Run the command again passing in newProfileName as a property -DnewProfileName=newprofilenameValue"
+                   unless="newProfileName.exist"/>
+  </target>
+
+
+  <target name="checkNodeName" description="check if the nodeName was pass in correctly">
+     <condition property="nodeName.exist">
+        <isset property="nodeName"/>
+     </condition>    
+     <fail message="The 'nodeName' is not set. Run the command again passing in nodeName as a property -DnodeName=nodenameValue"
+                   unless="nodeName.exist"/>
+  </target>
+
+  <target name="checkServerName" description="check if the serverName was pass in correctly">
+     <condition property="serverName.exist">
+        <isset property="serverName"/>
+     </condition>    
+     <fail message="The 'serverName' is not set. Run the command again passing in serverName as a property -DserverName=servernameValue"
+                   unless="serverName.exist"/>
+  </target>
+
+  <target name="checkOldNode" description="check if the oldNodeName was pass in correctly">
+     <condition property="oldNodeName.exist">
+        <isset property="oldNodeName"/>
+     </condition>    
+     <fail message="The 'oldNodeName' is not set. Run the command again passing in oldNodeName as a property -DoldNodeName=oldnodenameValue"
+                   unless="oldNodeName.exist"/>
+  </target>
+
+
+  <target name="checkNewNode" description="check if the newNodeName was pass in correctly">
+     <condition property="newNodeName.exist">
+        <isset property="newNodeName"/>
+     </condition>    
+     <fail message="The 'newNodeName' is not set. Run the command again passing in newNodeName as a property -DnewNodeName=newnodenameValue"
+                   unless="newNodeName.exist"/>
+  </target>
+
+
+  <target name="checkOldCell" description="check if the oldCellName was passed in correctly">
+     <condition property="oldCellName.exist">
+        <isset property="oldCellName"/>
+     </condition>    
+     <fail message="The 'oldCellName' is not set. Run the command again passing in oldCellName as a property -DoldCellName=oldcellnameValue"
+                   unless="oldCellName.exist"/>
+  </target>
+
+
+  <target name="checkNewCell" description="check if the newCellName was passed in correctly">
+     <condition property="newCellName.exist">
+        <isset property="newCellName"/>
+     </condition>    
+     <fail message="The 'newCellName' is not set. Run the command again passing in newCellName as a property -DnewCellName=newcellnameValue"
+                   unless="newCellName.exist"/>
+  </target>
+
+
+  <target name="checkOldServer" description="check if the oldServerName was passed in correctly">
+     <condition property="oldServerName.exist">
+        <isset property="oldServerName"/>
+     </condition>    
+     <fail message="The 'oldServerName' is not set. Run the command again passing in oldServerName as a property -DoldServerName=oldservernameValue"
+                   unless="oldServerName.exist"/>
+  </target>
+
+
+  <target name="checkNewServer" description="check if the newServerName was passed in correctly">
+     <condition property="newServerName.exist">
+        <isset property="newServerName"/>
+     </condition>    
+     <fail message="The 'newServerName' is not set. Run the command again passing in newServerName as a property -DnewServerName=newservernameValue"
+                   unless="newServerName.exist"/>
+  </target>
+
+
+  <target name="checkExportDir" description="check if exportDir was passed in correctly">
+     <condition property="exportDir.exist">
+        <isset property="exportDir"/>
+     </condition>    
+     <fail message="The 'exportDir' is not set. Run the command again passing in exportDir as a property -DexportDir=directorytoexportto"
+                   unless="exportDir.exist"/>
+  </target>
+
+
+  <target name="checkImportDir" description="check if importDir was passed in correctly">
+     <condition property="importDir.exist">
+        <isset property="importDir"/>
+     </condition>    
+     <fail message="The 'importDir' is not set. Run the command again passing in importDir as a property -DimportDir=directorytoimportfrom"
+                   unless="importDir.exist"/>
+  </target>
+
+
+  <target name="checkAppServer" description="check if appServer was pass in correctly">
+     <condition property="appServer.exist">
+        <isset property="appServer"/>
+     </condition>    
+     <fail message="The 'appServer' is not set. Run the command again passing in appServer as a property -DappServer=servernameValue"
+                   unless="appServer.exist"/>
+  </target>
+
+
+  <target name="checkAppName" description="check if appName was pass in correctly">
+     <condition property="appName.exist">
+        <isset property="appName"/>
+     </condition>    
+     <fail message="The 'appName' is not set. Run the command again passing in appName as a property -DappName=applicationnameValue"
+                   unless="appName.exist"/>
+  </target>
+
+
+  <target name="checkJdbcName" description="check if jdbcName was pass in correctly">
+     <condition property="jdbcName.exist">
+        <isset property="jdbcName"/>
+     </condition>    
+     <fail message="The 'jdbcName' is not set. Run the command again passing in jdbcName as a property -DjdbcName=jdbcprovidernameValue"
+                   unless="jdbcName.exist"/>
+  </target>
+
+
+  <target name="checkScope" description="check if scope was passed in correctly">
+     <condition property="scope.exist">
+        <isset property="scope"/>
+     </condition>    
+     <fail message="The 'scope' is not set. Run the command again passing in scope as a property -Dscope=scopelevel"
+                   unless="scope.exist"/>
+  </target>
+
+
+  <target name="dmgrHostName" description="get dmgr hostname">
+     <condition property="managerHostName.exist">
+        <isset property="managerHostName"/>
+     </condition>
+     <fail message="The 'managerHostName' is not set. Run the command again passing in managerHostName as a property -DmanagerHostName=managerhostnameValue"
+                   unless="managerHostName.exist"/>
+  </target>
+
+
+  <target name="dmgrSOAPPort" description="get dmgr SOAP port number">
+     <condition property="managerSOAPPort.exist">
+        <isset property="managerSOAPPort"/>
+     </condition>
+     <fail message="The 'managerSOAPPort' is not set. Run the command again passing in managerSOAPPort as a property -DmanagerSOAPPort=managerSOAPPortNumber"
+                   unless="managerSOAPPort.exist"/>
+  </target>
+
+  <target name="startManager" description="flag to either do startManager or not">
+     <condition property="startManager.exist">
+        <isset property="startManager"/>
+     </condition>
+  </target>
+
+
+  <target name="doStartManager" if="startManager.exist" description="execute startManager" depends="startManager">
+     <condition property="extension" value="sh">
+        <os family="unix"/>
+     </condition>
+
+     <condition property="extension" value="bat">
+        <os family="windows"/>
+     </condition>
+     <exec dir="." executable="${userInstallRoot}/bin/startManager.${extension}">
+     </exec> 
+  </target>
+
+
+  <!-- execute syncNode from nodeagent machine, this is assuming dmgr has been started -->
+  <target name="doSyncNode" description="execute syncNode from nodeagent machine" depends="dmgrHostName,dmgrSOAPPort">
+     <condition property="extension" value="sh">
+        <os family="unix"/>
+     </condition>
+
+     <condition property="extension" value="bat">
+        <os family="windows"/>
+     </condition>
+
+     <exec dir="." executable="${userInstallRoot}/bin/syncNode.${extension}">
+        <arg value="${managerHostName}"/>
+        <arg value="${managerSOAPPort}"/>
+     </exec>
+  </target>
+
+
+  <target name="checkChangeHostName" description="flag to either do change hostname or not">
+     <condition property="changeHostName.exist">
+        <isset property="changeHostName"/>
+     </condition>
+  </target>
+
+
+  <target name="checkChangeProfileName" description="flag to either do change profilename or not">
+     <condition property="changeProfileName.exist">
+        <isset property="changeProfileName"/>
+     </condition>
+  </target>
+
+
+  <target name="checkChangeCellName" description="flag to either do change cellname or not">
+     <condition property="changeCellName.exist">
+        <isset property="changeCellName"/>
+     </condition>
+  </target>
+
+
+  <target name="checkChangeNodeName" description="flag to either do change nodename or not">
+     <condition property="changeNodeName.exist">
+        <isset property="changeNodeName"/>
+     </condition>
+  </target>
+
+
+  <target name="checkChangeAppServerName" description="flag to either do change servername or not">
+     <condition property="changeServerName.exist">
+        <isset property="changeServerName"/>
+     </condition>
+  </target>
+
+
+  <!-- ============================================================================ -->
+
+
+  <!-- ******************************* -->
+  <!-- Start changing hostName process -->
+  <!-- ******************************* -->
+
+  <!-- This to change the hostname -->
+  <target name="changeHostName" description="change host name on base install" depends="checkRelease,checkNewHost,checkOldHost">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <antcall target="changeServerIndexConfig"/>
+     <antcall target="changeHNServerConfig"/>
+     <antcall target="changeWsadminProp"/>
+     
+     <!-- this option optional for nd, it will run if the property get set -->
+     <!-- in base will not run since the property is not set -->
+     <antcall target="doStartManager"/>
+  </target>
+
+
+  <!-- For Network Deployment environment, additional task needs to be run -->
+  <!-- on node machines. This task includes synchronization of the configuration -->
+  <!-- from the deployment manager to the node. -->
+  <!-- If the changes such as hostname are on the deployment manager, then this task needs to -->
+  <!-- be run on all the nodes in the cell. If the changes are on the node, -->
+  <!-- then this task needs to be run on the node machine that contains this change. -->
+  <target name="changeHostNameOnNDPart2" description="this task is to update the node machine" depends="checkNodeRelease">
+     <condition property="Part2Task" value="ForV5Node">
+        <equals arg1="5" arg2="${nodeRelease}"/>
+     </condition>
+
+     <condition property="Part2Task" value="ForV6Node">
+        <equals arg1="6" arg2="${nodeRelease}"/>
+     </condition>
+     <antcall target="changeHostNameOnNDPart2${Part2Task}"/>
+  </target>
+
+  <target name="changeHostNameOnNDPart2ForV6Node" description="this task is to update the node machine" depends="checkNewHost,checkOldHost,dmgrHostName,dmgrSOAPPort">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <antcall target="changeWsadminProp"/>
+     <antcall target="doSyncNode"/>
+  </target>
+
+
+  <target name="changeHostNameOnNDPart2ForV5Node" description="this task is to update the node machine" depends="checkNewHost,checkOldHost,dmgrHostName,dmgrSOAPPort">
+     <property name="userInstallRoot" value="${wasHome}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+ 
+     <antcall target="changeOrbProp"/>
+     <antcall target="changeWsadminProp"/>
+     <antcall target="doSyncNode"/>
+  </target>
+
+
+  <target name="changeServerIndexConfig" description="change the serverindex.xml that is in config repository directory">
+     <!-- Modify serverindex.xml in the node directory -->
+     <echo message="Modifying serverindex.xml from ${oldHostName} to ${newHostName}"/>
+     <replace dir="${configRoot}/cells" 
+              token='hostName="${oldHostName}"' value='hostName="${newHostName}"'>
+        <include name="**/serverindex.xml"/>
+     </replace>
+
+     <replace dir="${configRoot}/cells" 
+              token='host="${oldHostName}"' value='host="${newHostName}"'>
+        <include name="**/serverindex.xml"/>
+     </replace>
+  </target>
+
+
+  <target name="changeHNServerConfig" description="change the server.xml that is in config repository directory">
+     <!-- Modify server.xml in the servers directory -->
+     <echo message="Modifying server.xml from ${oldHostName} to ${newHostName}"/>
+     <replace dir="${configRoot}/cells" 
+              token='host="${oldHostName}"' value='host="${newHostName}"'>
+        <include name="**/server.xml"/>
+     </replace>
+  </target> 
+ 
+  
+  <target name="changeWsadminProp" description="change the hostname in wsadmin.properties file">
+     <!-- Modify property value for host in wsadmin.properties -->
+     <echo message="Modifying wsadmin.properties from ${oldHostName} to ${newHostName}"/>
+     <replace file="${userInstallRoot}/properties/wsadmin.properties" 
+              token="com.ibm.ws.scripting.host=${oldHostName}" value="com.ibm.ws.scripting.host=${newHostName}"/>
+  </target>
+
+
+  <target name="changeOrbProp" description="change the hostname in orb.properties file">
+     <!-- Modify property value for host in orb.properties -->
+     <echo message="Modifying orb.properties from ${oldHostName} to ${newHostName}"/>
+     <replace file="${wasHome}/java/jre/lib/orb.properties" 
+              token="com.ibm.CORBA.LocalHost=${oldHostName}" value="com.ibm.CORBA.LocalHost=${newHostName}"/>
+  </target>
+
+  <!-- ============================================================================== -->
+
+
+  <!-- ******************************* -->
+  <!-- Start changing cellName process -->
+  <!-- ******************************* -->
+
+  <!-- This task to change cellName -->
+  <target name="changeCellName" description="change cell name" depends="checkRelease,checkNewCell,checkOldCell">
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <property name="node" value="${env.WAS_NODE}"/>
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <property name="cell.old" value="${oldCellName}"/>
+     <property name="cell.new" value="${newCellName}"/>
+     <antcall target="changeCellConfigDir"/>
+     <antcall target="changeCellConfig"/>
+     <antcall target="changeCellDeployment"/>
+     <antcall target="changeCellInstalledAppsDir"/>
+     <antcall target="changeCellSetupCmdLine"/>
+     <antcall target="changeCellPluginCfg"/>
+
+     <!-- this option optional for nd, if it was not set then it will not execute so is ok for base -->
+     <!-- that way this task can be use for base and nd -->
+     <antcall target="doStartManager"/>
+  </target>
+
+
+  <!-- This is additional task for nd that need to be called from all nodeagent machines in the cell -->
+  <target name="changeCellNameOnNDPart2" description="this task is to update the node machine" depends="checkNodeRelease">
+     <condition property="Part2Task" value="ForV5Node">
+        <equals arg1="5" arg2="${nodeRelease}"/>
+     </condition>
+
+     <condition property="Part2Task" value="ForV6Node">
+        <equals arg1="6" arg2="${nodeRelease}"/>
+     </condition>
+     <antcall target="changeCellNameOnNDPart2${Part2Task}"/>
+  </target>
+
+
+  <target name="changeCellNameOnNDPart2ForV6Node" description="change cell name on node machine" depends="checkNewCell,checkOldCell,dmgrHostName,dmgrSOAPPort">
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <property name="node" value="${env.WAS_NODE}"/>
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <property name="cell.old" value="${oldCellName}"/>
+     <property name="cell.new" value="${newCellName}"/>
+     <antcall target="changeCellSetupCmdLine"/>
+     <antcall target="changeCellConfigDir"/>
+     <antcall target="changeCellInstalledAppsDir"/>
+     <antcall target="doSyncNode"/>
+  </target>
+
+
+  <target name="changeCellNameOnNDPart2ForV5Node" description="change cell name on node machine" depends="checkNewCell,checkOldCell,dmgrHostName,dmgrSOAPPort">
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <property name="node" value="${env.WAS_NODE}"/>
+     <property name="userInstallRoot" value="${wasHome}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <property name="cell.old" value="${oldCellName}"/>
+     <property name="cell.new" value="${newCellName}"/>
+     <antcall target="changeCellSetupCmdLine"/>
+     <antcall target="changeCellConfigDir"/>
+     <antcall target="changeCellInstalledAppsDir"/>
+     <antcall target="doSyncNode"/>
+  </target>
+
+
+  <target name="changeCellConfigDir" description="change cell name in config directory structure">
+     <!-- Change the cellName directory in the config directory -->
+     <echo message="Modifying directory structure for cellname from ${cell.old} to ${cell.new}"/>
+     <mkdir dir="${configRoot}/cells/${cell.old}"/>
+     <move todir="${configRoot}/cells/${cell.new}" failonerror="false">
+        <fileset dir="${configRoot}/cells/${cell.old}"/>
+     </move>
+  </target>
+
+
+  <target name="changeCellInstalledAppsDir" description="change cell name in the installedApp directory structure">
+     <!-- Create the xNetwork directory to avoid build failed if the directory is not exist -->
+     <mkdir dir="${userInstallRoot}/installedApps/${cell.old}"/>
+
+     <!-- Change the cellName directory in the installedApps directory" -->    
+     <echo message="Modifying cell name in installedApps directory from ${cell.old} to ${cell.new}"/>         
+     <move todir="${userInstallRoot}/installedApps/${cell.new}" failonerror="false">
+        <fileset dir="${userInstallRoot}/installedApps/${cell.old}"/>
+     </move>
+  </target>  
+ 
+
+  <target name="changeCellConfig" description="change cell name in cell.xml"> 
+     <!-- Modify cell.xml in the cell directory -->
+     <echo message="Modifying cell.xml from ${cell.old} to ${cell.new}"/>
+     <replace file="${configRoot}/cells/${cell.new}/cell.xml"
+                   token='="${cell.old}"' value='="${cell.new}"'/>
+  </target>  
+
+
+  <target name="changeCellSetupCmdLine" description="change cell name in setupCmdLine">
+     <condition property="extension" value="sh">
+        <os family="unix"/>
+     </condition>
+
+     <condition property="extension" value="bat">
+        <os family="windows"/>
+     </condition>
+
+     <!-- Modify setupCmdLine(.bat/.sh) file in the userInstallRoot/bin directory -->
+     <echo message="Modifying setupCmdLine from ${cell.old} to ${cell.new}"/>
+     <replace file="${userInstallRoot}/bin/setupCmdLine.${extension}"
+              token="WAS_CELL=${cell.old}" value="WAS_CELL=${cell.new}"/>
+  </target>
+
+
+  <target name="changeCellDeployment" description="change the cell name in deployment.xml">
+     <!-- Modify all deployment.xml file under each installed application directory -->
+     <echo message="Modifying deployment.xml for cell name from ${cell.old} to ${cell.new}"/>
+     <!-- do not use applications directory here, if no applications installed will causing ws_ant build failed -->
+     <replace dir="${configRoot}/cells/${cell.new}" token="/${cell.old}/" value="/${cell.new}/">
+        <include name="**/deployment.xml"/>
+     </replace>
+     <replace dir="${configRoot}/cells/${cell.new}" token="href!${cell.old}/" value="href!${cell.new}/">
+        <include name="**/deployment.xml"/>
+     </replace>
+  </target>
+
+
+  <target name="changeCellPluginCfg" description="change the cell name in plugin-cfg.xml">
+     <!-- Modify all plugin-cfg.xml file under each profile directory -->
+     <echo message="Modifying plugin-cfg.xml for cell name from ${cell.old} to ${cell.new}"/>
+     <replace dir="${wasHome}/profiles" token="${cell.old}" value="${cell.new}">
+        <include name="**/plugin-cfg.xml"/>
+     </replace>
+  </target>
+
+
+  <!-- ================================================================================ -->
+
+
+  <!-- ******************************* -->
+  <!-- Start changing nodeName process -->
+  <!-- ******************************* -->
+
+  <!-- This task can be call on base single server and/or nd environment -->
+  <target name="changeNodeName" description="change node name" depends="checkRelease,checkNewNode,checkOldNode">
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <property name="node" value="${env.WAS_NODE}"/>
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <property name="node.old" value="${oldNodeName}"/>
+     <property name="node.new" value="${newNodeName}"/>
+     <condition property="dmgrNodeName.exist">
+        <isset property="dmgrNodeName"/>
+     </condition>
+     <antcall target="changeNodeConfigDir"/>
+     <antcall target="changeNodeConfig"/>
+     <antcall target="changeSecurityConfig"/>
+     <antcall target="changeNodeDeployment"/>
+     <antcall target="changeNodeServerConfig"/>
+     <antcall target="changeResourceConfig"/>
+     <antcall target="changeTemplateConfig"/>
+     <antcall target="changeDmgrNodeSetupCmdLine"/>
+     <antcall target="changeNodePluginCfg"/>
+     <antcall target="changeGroupXML"/>
+
+     <!-- This task will be for nd so in base it will just not do anything -->
+     <antcall target="changeNodeInCluster"/>
+
+     <!-- this option optional for nd, if it was not set then it will not execute so is ok for base -->
+     <!-- that way this task can be used for base and nd -->
+     <antcall target="doStartManager"/>
+  </target>
+
+
+  <!-- For Network Deployment environment, an additional task needs to be run on the node machine that has the node name change -->
+  <target name="changeNodeNameOnNDPart2" description="this task is to update the node machine" depends="checkNodeRelease">
+     <condition property="Part2Task" value="ForV5Node">
+        <equals arg1="5" arg2="${nodeRelease}"/>
+     </condition>
+
+     <condition property="Part2Task" value="ForV6Node">
+        <equals arg1="6" arg2="${nodeRelease}"/>
+     </condition>
+     <antcall target="changeNodeNameOnNDPart2${Part2Task}"/>
+  </target>
+
+
+  <target name="changeNodeNameOnNDPart2ForV6Node" description="change node name on node machine" depends="checkNewNode,checkOldNode,dmgrHostName,dmgrSOAPPort">
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <property name="node" value="${env.WAS_NODE}"/>
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <property name="node.old" value="${oldNodeName}"/>
+     <property name="node.new" value="${newNodeName}"/>
+     <antcall target="changeNodeConfigDir"/>
+     <antcall target="changeNodeSetupCmdLine"/>
+     <antcall target="doSyncNode"/>
+  </target>
+
+
+  <target name="changeNodeNameOnNDPart2ForV5Node" description="change node name on node machine" depends="checkNewNode,checkOldNode,dmgrHostName,dmgrSOAPPort">
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <property name="node" value="${env.WAS_NODE}"/>
+     <property name="userInstallRoot" value="${wasHome}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <property name="node.old" value="${oldNodeName}"/>
+     <property name="node.new" value="${newNodeName}"/>
+     <antcall target="changeNodeConfigDir"/>
+     <antcall target="changeNodeSetupCmdLine"/>
+     <antcall target="doSyncNode"/>
+  </target>
+ 
+ 
+  <target name="changeNodeConfigDir" description="change node name in config directory structure"> 
+     <!-- Change the nodeName directory in the config directory -->
+     <echo message="Modifying directory structure for nodename from ${node.old} to ${node.new}"/>
+     <mkdir dir="${configRoot}/cells/${cell}/nodes/${node.old}"/>
+     <move todir="${configRoot}/cells/${cell}/nodes/${node.new}" failonerror="false">
+        <fileset dir="${configRoot}/cells/${cell}/nodes/${node.old}"/>
+     </move>
+  </target>
+
+
+  <target name="changeNodeConfig" description="change node name in node.xml">
+     <!-- Modify node.xml in the node directory -->
+     <echo message="Modifying node.xml from ${node.old} to ${node.new}"/>
+     <replace file="${configRoot}/cells/${cell}/nodes/${node.new}/node.xml"
+                    token='="${node.old}"' value='="${node.new}"'/>
+  </target>
+
+
+  <target name="changeNodeSetupCmdLine" description="change the setupCmdLine">
+     <condition property="extension" value="sh">
+        <os family="unix"/>
+     </condition>
+
+     <condition property="extension" value="bat">
+        <os family="windows"/>
+     </condition>
+
+     <!-- Modify setupCmdLine(.bat/.sh) file in the userInstallRoot/bin directory -->
+     <echo message="Modifying setupCmdLine from ${node.old} to ${node.new}"/>
+     <replace file="${userInstallRoot}/bin/setupCmdLine.${extension}"
+              token="WAS_NODE=${node.old}" value="WAS_NODE=${node.new}"/>
+  </target>
+ 
+
+  <target name="changeDmgrNodeSetupCmdLine" if="dmgrNodeName.exist" description="change the setupCmdLine of dmgr">
+     <condition property="extension" value="sh">
+        <os family="unix"/>
+     </condition>
+
+     <condition property="extension" value="bat">
+        <os family="windows"/>
+     </condition>
+
+     <!-- Modify setupCmdLine(.bat/.sh) file in the userInstallRoot/bin directory -->
+     <echo message="Modifying setupCmdLine from ${node.old} to ${node.new}"/>
+     <replace file="${userInstallRoot}/bin/setupCmdLine.${extension}"
+              token="WAS_NODE=${node.old}" value="WAS_NODE=${node.new}"/>
+  </target>
+
+
+  <target name="changeSecurityConfig" description="change node name in security.xml">
+     <!-- Modify security.xml in the cell directory -->
+     <echo message="Modifying security.xml from ${node.old} to ${node.new}"/>
+     <replace file="${configRoot}/cells/${cell}/security.xml"
+                   token='="${node.old}/' value='="${node.new}/'/>
+  </target>  
+
+
+  <target name="changeNodeDeployment" description="change the node name in deployment.xml">
+     <!-- Modify all deployment.xml file under each installed application directory -->
+     <echo message="Modifying deployment.xml for node name from ${node.old} to ${node.new}"/>
+     <!-- do not use applications directory here, if no applications installed will causing ws_ant build failed -->
+     <replace dir="${configRoot}/cells/${cell}" token='="${node.old}"' value='="${node.new}"'>
+        <include name="**/deployment.xml"/>
+     </replace>
+  </target>
+
+
+  <!-- Do the renaming in the nodes level for all servers in the nodes -->
+  <!-- as nd cluster member may use deployment manager node as an sslconfig and the member is not in manager node directory -->
+  <target name="changeNodeServerConfig" description="change the node name in server.xml of config">
+     <!-- Modify server.xml in the server directories under the node will be changed -->
+     <echo message="Modifying server.xml for node name from ${node.old} to ${node.new}"/>
+     <replace dir="${configRoot}/cells/${cell}/nodes" token='="${node.old}/' value='="${node.new}/'>
+        <include name="**/server.xml"/>
+     </replace>
+  </target>
+ 
+
+  <target name="changeResourceConfig" description="change the node name in resources.xml of config">
+     <!-- Modify resources.xml in the cell, node and server directories -->
+     <echo message="Modifying resources.xml for node name from ${node.old} to ${node.new}"/>
+     <replace dir="${configRoot}/cells" token='="${node.old}/' value='="${node.new}/'>
+        <include name="**/resources.xml"/>
+     </replace>
+
+     <replace dir="${configRoot}/cells" token='="${node.old}"' value='="${node.new}"'>
+        <include name="**/resources.xml"/>
+     </replace>
+  </target>
+
+
+  <target name="changeTemplateConfig" description="change the node name in all templates files of config">
+     <!-- Modify all template files under userInstallRoot/config/templates directory -->
+     <echo message="Modifying all template xml file from ${node.old} to ${node.new}"/>
+     <replace dir="${configRoot}/templates" token='="${node.old}/' value='="${node.new}/'>
+        <include name="**/*.xml"/>
+     </replace>
+  </target>
+ 
+
+  <target name="changeNodeInCluster" description="change the node name that is in cluster.xml">
+     <!-- Modify all the server name occurances in cluster.xml -->
+     <echo message="Modifying cluster.xml for node name from ${node.old} to ${node.new}"/>
+     <replace dir="${configRoot}/cells/${cell}"
+                  token='nodeName="${node.old}"' value='nodeName="${node.new}"'>
+        <include name="**/cluster.xml"/>
+     </replace>
+  </target>
+
+
+  <target name="changeNodePluginCfg" description="change the node name in plugin-cfg.xml">
+     <!-- Modify all plugin-cfg.xml file under each profile directory -->
+     <echo message="Modifying plugin-cfg.xml for node name from ${node.old} to ${node.new}"/>
+     <replace dir="${wasHome}/profiles" token="${node.old}" value="${node.new}">
+        <include name="**/plugin-cfg.xml"/>
+     </replace>
+  </target>
+
+
+  <target name="changeGroupXML" description="change the node name in coregroup.xml and nodegroup.xml">
+     <!-- Modify all coregroup.xml and nodegroup.xml file under each profile directory -->
+     <echo message="Modifying coregroup.xml and nodegroup.xml for node name from ${node.old} to ${node.new}"/>
+     <replace dir="${wasHome}/profiles" token="${node.old}" value="${node.new}">
+        <include name="**/coregroup.xml"/>
+        <include name="**/nodegroup.xml"/>
+     </replace>
+  </target>
+
+
+  <!-- ========================================================================= -->
+
+
+  <!-- ********************************* -->
+  <!-- Start changing serverName process -->
+  <!-- ********************************* -->
+
+  <!-- Task to change servername -->
+  <target name="changeServerName" description="change server name" depends="checkRelease,checkNewServer,checkOldServer,checkNodeName">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <property name="server.old" value="${oldServerName}"/>
+     <property name="server.new" value="${newServerName}"/>
+     <property name="node.affected" value="${nodeName}"/>
+     <antcall target="changeServerConfigDir"/>
+     <antcall target="changeServerConfig"/>
+     <antcall target="changeServerIndex"/>
+     <antcall target="changeSystemApp"/>
+     <antcall target="changeServerDeployment"/> 
+     <antcall target="changeCoreGroupServerName"/>
+
+     <!-- this task for nd so for base it will just not do anything -->
+     <antcall target="changeServerInCluster"/>
+  </target>
+
+
+  <target name="changeServerConfigDir" description="change server name">
+     <!-- Change the serverName directory in the config directory -->
+     <echo message="Modifying the directory structure for servername from ${server.old} to ${server.new}"/>
+     <mkdir dir="${configRoot}/cells/${cell}/nodes/${node.affected}/servers/${server.old}"/>
+     <move todir="${configRoot}/cells/${cell}/nodes/${node.affected}/servers/${server.new}" failonerror="false">
+        <fileset dir="${configRoot}/cells/${cell}/nodes/${node.affected}/servers/${server.old}"/> 
+     </move>
+  </target>
+
+
+  <target name="changeServerConfig" description="change server name">
+     <echo message="Modifying servername on all xml files under ${server.new} directory from ${server.old} to ${server.new}"/>
+     <!-- Modify all server name occurances under config server directory -->
+     <replace dir="${configRoot}/cells/${cell}/nodes/${node.affected}/servers/${server.new}"
+                  token='="${server.old}"' value='="${server.new}"'>
+        <include name="**/*.xml"/>
+     </replace>
+
+     <replace dir="${configRoot}/cells/${cell}/nodes/${node.affected}/servers/${server.new}"
+                  token='/${server.old}"' value='/${server.new}"'>
+        <include name="**/*.xml"/>
+     </replace>
+  </target>
+
+
+  <target name="changeServerIndex" description="change server name in serverIndex">
+     <!-- Modify server name in serverIndex.xml -->
+     <echo message="Modifying serverindex.xml on ${node.affected} for servername from ${server.old} to ${server.new}"/>
+     <replace file="${configRoot}/cells/${cell}/nodes/${node.affected}/serverindex.xml"
+                  token='="${server.old}"' value='="${server.new}"'/>
+  </target>
+
+
+  <target name="changeSystemApp" description="change server name in systemapps">
+     <!-- Modify server name in serverIndex.xml -->
+     <echo message="Modifying serverindex.xml on ${node.affected} for servername from ${server.old} to ${server.new}"/>
+     <replace file="${configRoot}/cells/${cell}/nodes/${node.affected}/systemapps.xml"
+                  token='serverName="${server.old}"' value='serverName="${server.new}"'/>
+  </target>
+ 
+
+  <target name="changeServerDeployment" description="change server name in deployment.xml">
+     <!-- Modify the serverName in the deployment.xml on the node that will have the server name change -->
+     <echo message="Modifying deployment.xml for servername under ${configRoot}/cells/${cell}/applications direcoty on ${node.affected} from ${server.old} to ${server.new}"/>
+     <replace dir="${configRoot}/cells/${cell}" 
+                   token='="${server.old}" nodeName="${node.affected}"' value='="${server.new}" nodeName="${node.affected}"'>
+        <include name="**/deployment.xml"/>
+     </replace>
+  </target>
+
+
+  <target name="changeServerInCluster" description="change the server name that is in cluster.xml">
+     <!-- Modify all the server name occurances in cluster.xml -->
+     <echo message="Modifying cluster.xml for servername on ${node.affected} from ${server.old} to ${server.new}"/>
+     <replaceregexp byline="true"
+             match='memberName="${server.old}"\ (.*)\ nodeName="${node.affected}"' replace='memberName="${server.new}"\ \1\ nodeName="${node.affected}"'>
+         <fileset dir="${configRoot}/cells/${cell}" includes="**/cluster.xml"/>
+     </replaceregexp>
+  </target>
+
+
+  <target name="changeCoreGroupServerName" description="Change the serverName in CoreGroupServer">
+    <wsadmin conntype="NONE" 
+       script="updateCoreGroupServer.jacl">
+       <arg value="${server.old}"/>
+       <arg value="${server.new}"/>
+    </wsadmin>
+  </target>
+
+  <!-- ============================================== -->
+
+
+  <!-- ******************************* -->
+  <!-- Start changing profileName process -->
+  <!-- ******************************* -->
+
+  <!-- This task to change profileName -->
+  <target name="changeProfileName" description="change profile name" depends="checkNewProfile,checkOldProfile">
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <property name="node" value="${env.WAS_NODE}"/>
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <echo message="Changing profile name from ${oldProfileName} to ${newProfileName}"/>
+     <property name="profile.old" value="${oldProfileName}"/>
+     <property name="profile.new" value="${newProfileName}"/>
+     <antcall target="changeServerXML"/>
+  </target>
+
+
+  <target name="changeServerXML" description="change the profile name in server.xml">
+     <!-- Modify all server.xml file under the profile directory -->
+     <echo message="Modifying server.xml for profile name from ${profile.old} to ${profile.new}"/>
+     <!-- do not use applications directory here, if no applications installed will causing ws_ant build failed -->
+     <replace dir="${wasHome}/profiles" token="/profiles/${profile.old}" value="/profiles/${profile.new}">
+        <include name="**/server.xml"/>
+     </replace>
+  </target>
+
+
+
+  <!-- ============================================== -->
+
+
+  <!-- **************************************** -->
+  <!-- export/import the whole config directory -->
+  <!-- **************************************** -->
+
+  <!-- Task to export the whole config repository from source machine to export/import directory -->
+  <!-- this will not include the whole <configroot>/cells/applications directory since all the -->
+  <!-- applications will be exported separately using exportApplication task -->  
+  <target name="exportConfigRepository" description="Export the whole config repository" depends="checkRelease,checkExportDir">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <antcall target="copySourceConfigDir"/>
+     <antcall target="deleteAppDir"/>
+     <antcall target="saveFileForImport"/>
+     <antcall target="exportAllApplication"/>
+  </target>
+ 
+
+  <!-- Task to import the whole config repository from export/import directory to target machine -->
+  <target name="importConfigRepository" description="Import the whole config repository" depends="checkRelease,checkImportDir">
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <property name="node" value="${env.WAS_NODE}"/>
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <!-- backup the original target config directory and installedApps directory -->
+     <echo message="Backup target config directory and installedApps directory on ${importDir}/target/backup directory"/>
+     <echo message="If import tasks failed then you can restore the original target config back by using 'restorebackup' task"/>
+     <antcall target="backup"/>
+
+     <!-- start import process -->
+     <antcall target="saveSystemAppFile"/>
+     <antcall target="uninstallAppsOnTarget"/>
+     <antcall target="getVariableValues"/>
+     <antcall target="fixedVariableValuesPath"/>
+     <antcall target="deleteTargetConfigDir"/>
+     <antcall target="copyConfigToTarget"/>
+     <antcall target="overwriteSystemAppFile"/>
+     <antcall target="changeCellOnSetupCmdLine"/>
+     <antcall target="changeNodeOnSetupCmdLine"/>
+     <antcall target="renameCellInstalledAppsDir"/>
+     <antcall target="renameHostName"/>
+     <antcall target="renameCellName"/>
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <antcall target="renameNodeName"/>
+     <antcall target="importAllApplication"/>
+     <antcall target="changeVariableValues"/>
+     <antcall target="renameProfileName"/>
+     <antcall target="overwriteSystemAppFile"/>
+     <antcall target="renameAppServerName"/>
+     <antcall target="fixSOAPPort"/>
+  </target>
+
+
+  <target name="saveSystemAppFile" description="Save systemapps.xml of target machine"> 
+     <mkdir dir="${importDir}/target/systemapps"/>
+
+     <echo message="Copying systemapps.xml to ${importDir}/target/systemapps"/>
+     <copy tofile="${importDir}/target/systemapps/systemapps.xml" overwrite="true" file="${configRoot}/cells/${cell}/nodes/${node}/systemapps.xml"/>
+  </target>
+
+
+  <target name="overwriteSystemAppFile" description="overwrite source machine systemapps.xml file with target machine">
+    <!-- Copy systemapps.xml to the imported configuration -->
+    <copy tofile="${configRoot}/cells/${cell}/nodes/${node}/systemapps.xml" overwrite="true" file="${importDir}/target/systemapps/systemapps.xml"/>
+  </target>
+
+
+  <target name="fixSOAPPort" description="fix SOAP Port in wsadmin.properties file to reflect to imported server port">
+    <echo message="User install root is ${userInstallRoot}"/>
+    <!-- Comment out the original property value for port in wsadmin.properties -->
+    <echo message="Comment out wsadmin.properties for existing port number"/>
+    <replace file="${userInstallRoot}/properties/wsadmin.properties" 
+              token="com.ibm.ws.scripting.port=" value="#com.ibm.ws.scripting.port="/>
+
+    <wsadmin conntype="NONE"
+      script="fixSOAPPort.jacl">
+    </wsadmin> 
+  </target>
+
+
+  <target name="getVariableValues" description="Get some variable mappings on node level and save it to a property file">
+    <!-- Create the import directory -->
+    <mkdir dir="${importDir}/target"/>
+    <wsadmin conntype="NONE" 
+       script="getVariableValues.jacl">
+       <arg value="${importDir}/target"/>
+    </wsadmin>
+  </target>
+
+
+  <target name="fixedVariableValuesPath" description="Replace \ with / in the value path">
+     <!-- change the path separator from \ to / in variableMapping.properties -->
+     <replace file="${importDir}/target/variableMapping.properties"
+              token="\" value="/"/>
+  </target>
+
+
+  <target name="changeVariableValues" description="Change some variable mappings to reflect to target machine env" depends="checkImportDir">
+    <wsadmin conntype="NONE" 
+       script="changeVariableValues.jacl">
+       <arg value="${importDir}/target"/>
+    </wsadmin>
+  </target>
+
+
+  <target name="renameHostName" if="changeHostName.exist" description="Change the hostname" depends="checkChangeHostName">
+     <echo message="Changing hostname from ${sourceHostName} to ${targetHostName}"/>
+     <property name="oldHostName" value="${sourceHostName}"/>
+     <property name="newHostName" value="${targetHostName}"/>
+     <antcall target="changeHostName"/>
+  </target>
+
+
+  <target name="renameCellName" if="changeCellName.exist" description="Change the cellname" depends="checkChangeCellName">
+     <echo message="Changing cell name from ${sourceCellName} to ${targetCellName}"/>
+     <property name="oldCellName" value="${sourceCellName}"/>
+     <property name="newCellName" value="${targetCellName}"/>
+     <property name="oldProfileName" value="${sourceProfileName}"/>
+     <property name="newProfileName" value="${targetCellName}"/>
+     <antcall target="changeCellName"/>
+     <echo message="deploymentTarget.properties in the importDir"/>
+     <replace file="${importDir}/source/deploymentTarget.properties" 
+              token="/${oldCellName}/" value="/${newCellName}/"/>
+     <echo message="Modifying directory structure for cellname from ${oldCellName} to ${newCellName}"/>
+     <mkdir dir="${importDir}/source/applications/cells/${oldCellName}"/>
+     <move todir="${importDir}/source/applications/cells/${newCellName}" failonerror="false">
+        <fileset dir="${importDir}/source/applications/cells/${oldCellName}"/>
+     </move>
+  </target>
+
+
+  <target name="renameNodeName" if="changeNodeName.exist" description="Change the nodename" depends="checkRelease,checkImportDir,checkChangeNodeName">
+     <echo message="Changing node name from ${sourceNodeName} to ${targetNodeName}"/>
+     <property name="oldNodeName" value="${sourceNodeName}"/>
+     <property name="newNodeName" value="${targetNodeName}"/>
+     <property name="dmgrNodeName" value="yes"/>
+     <antcall target="changeNodeName"/>
+     <antcall target="changeVariableValues"/>
+     <echo message="modifying nodeName for deploymentTarget.properties in the importDir"/>
+     <replace file="${importDir}/source/deploymentTarget.properties" 
+              token="${oldNodeName}" value="${newNodeName}"/>
+     <echo message="modifying nodeName for deployedApp.properties in the importDir"/>
+     <replace file="${importDir}/source/deployedApp.properties" 
+              token="${oldNodeName}" value="${newNodeName}"/>
+  </target>
+
+
+  <target name="renameProfileName" if="changeProfileName.exist" description="Change the profile name" depends="checkImportDir,checkChangeProfileName">
+     <echo message="Changing node name from ${sourceProfileName} to ${targetProfileName}"/>
+     <property name="oldProfileName" value="${sourceProfileName}"/>
+     <property name="newProfileName" value="${targetProfileName}"/>
+     <antcall target="changeProfileName"/>
+  </target>
+
+
+  <target name="renameAppServerName" if="changeServerName.exist" description="Change the App server name" depends="checkChangeAppServerName">
+     <echo message="Changing server from ${targetServerName} to ${sourceServerName}"/>
+     <property name="oldServerName" value="${targetServerName}"/>
+     <property name="newServerName" value="${sourceServerName}"/>
+     <antcall target="fixSystemAppServerName"/>
+  </target>
+
+
+  <target name="fixSystemAppServerName" description="fixing the server name in systemapps.xml file">
+     <!-- Modify systemapps.xml file in the target machine -->
+     <echo message="Modifying server name in systemapps.xml from ${oldServerName} to ${newServerName}"/>
+     <replace dir="${configRoot}/cells" 
+                   token="${oldServerName}" value="${newServerName}">
+        <include name="**/systemapps.xml"/>
+     </replace>
+  </target>
+
+
+  <target name="copySourceConfigDir" description="Copy the whole config directory source machine">
+     <!-- Create the export directory -->
+     <mkdir dir="${exportDir}/source/config"/>
+
+     <echo message="Copying ${configRoot} to ${exportDir}/source/config"/>  
+     <copy todir="${exportDir}/source/config">
+        <fileset dir="${configRoot}"/> 
+     </copy> 
+  </target>
+
+
+  <target name="deleteAppDir" description="Delete the applications directory"> 
+     <!-- Delete applications directory -->
+     <echo message="Deleting ${exportDir}/source/config/cells/${cell}/applications"/>
+     <delete includeEmptyDirs="true" quiet="true" failonerror="false">
+        <fileset dir="${exportDir}/source/config/cells/${cell}/applications"/>
+     </delete>
+  </target>
+
+
+  <target name="deleteTargetConfigDir" description="Delete the whole target config directory">     
+     <!-- Delete the whole target config directory -->
+     <echo message="Deleting ${configRoot}"/>
+     <delete includeEmptyDirs="true">
+        <fileset dir="${configRoot}"/>
+     </delete>
+  </target> 
+
+
+  <target name="copyConfigToTarget" description="Copy the whole config directory to the target machine">
+     <!-- Copy the whole config directory from the exportImportDir to the target directory -->
+     <echo message="Copying ${importDir}/source/config to ${configRoot}"/>  
+     <copy todir="${configRoot}" overwrite="true">
+        <fileset dir="${importDir}/source/config"/>
+     </copy>
+  </target>
+
+
+  <target name="saveFileForImport" description="Save all deployment.xml and serverindex.xml of all applications installed on source, needed for import applications to replace on target machine"> 
+     <mkdir dir="${exportDir}/source/applications"/>
+     <mkdir dir="${exportDir}/source/properties"/>
+
+     <echo message="Copying all source deployment.xml and serverindex.xml to ${exportDir}/applications"/>
+     <copy todir="${exportDir}/source/applications">
+        <fileset dir="${configRoot}">
+           <include name="**/deployment.xml"/>
+        </fileset>
+     </copy>
+  </target>
+
+
+  <target name="uninstallAppsOnTarget" description="Uninstall all application that exist in the target machine"> 
+     <!-- Uninstall all applications that exist in the target machine -->
+     <echo message="Uninstalling all application on the target machine"/>
+     <wsadmin conntype="NONE"
+        script="uninstallApps.jacl">
+     </wsadmin>
+  </target>
+
+
+  <target name="renameCellInstalledAppsDir" if="changeCellName.exist" description="change cell name in the installedApp directory structure" depends="checkChangeCellName">
+     <!-- this renaming necessary otherwise when renaming cellName task executed will fail -->
+     <!-- as it expected to have the source cellName instead of target cellName -->
+     <!-- Change the cellName director in the installedApps directory" -->    
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Modifying cell name in installedApps directory from ${targetCellName} to ${sourceCellName}"/>         
+     <!-- make the dir just incase no application exist and the dir is not exist that causing build fail -->
+     <mkdir dir="${userInstallRoot}/installedApps/${targetCellName}"/>
+     <move todir="${userInstallRoot}/installedApps/${sourceCellName}">
+        <fileset dir="${userInstallRoot}/installedApps/${targetCellName}"/>
+     </move>
+  </target>  
+ 
+
+  <target name="changeCellOnSetupCmdLine" if="changeCellName.exist" description="change cell name in the setupCmdLine" depends="checkChangeCellName">
+     <!-- this renaming necessary otherwise importing application will fail -->
+     <!-- Change the cellName in setupCmdLine" -->    
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <condition property="extension" value="sh">
+        <os family="unix"/>
+     </condition>
+
+     <condition property="extension" value="bat">
+        <os family="windows"/>
+     </condition>
+
+     <!-- Modify setupCmdLine(.bat/.sh) file in the userInstallRoot/bin directory of target machine -->
+     <echo message="Modifying cell name in setupCmdLine from ${targetCellName} to ${sourceCellName}"/>
+     <replace file="${userInstallRoot}/bin/setupCmdLine.${extension}"
+              token="WAS_CELL=${targetCellName}" value="WAS_CELL=${sourceCellName}"/>
+  </target>  
+
+
+  <target name="changeNodeOnSetupCmdLine" if="changeNodeName.exist" description="change node name in the setupCmdLine" depends="checkChangeNodeName">
+     <!-- this renaming necessary otherwise importing application will fail -->
+     <!-- Change the nodeName in setupCmdLine" -->    
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <condition property="extension" value="sh">
+        <os family="unix"/>
+     </condition>
+
+     <condition property="extension" value="bat">
+        <os family="windows"/>
+     </condition>
+
+     <!-- Modify setupCmdLine(.bat/.sh) file in the userInstallRoot/bin directory of target machine -->
+     <echo message="Modifying node name in setupCmdLine from ${targetNodeName} to ${sourceNodeName}"/>
+     <replace file="${userInstallRoot}/bin/setupCmdLine.${extension}"
+              token="WAS_NODE=${targetNodeName}" value="WAS_NODE=${sourceNodeName}"/>
+  </target>  
+
+
+  <!-- ============================================================================ -->
+
+
+  <!-- *************************** -->
+  <!-- export/import an app server -->
+  <!-- *************************** -->
+
+  <target name="exportAppServer" description="Export application server" depends="checkRelease,checkExportDir,checkAppServer,checkNodeName">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+    <!-- Creates the export directory -->
+    <mkdir dir="${exportDir}/${appServer}"/> 
+
+    <!-- Copies server files to the export directory -->
+    <copy todir="${exportDir}/${appServer}">
+      <fileset dir="${configRoot}/cells/${cell}/nodes/${nodeName}/servers/${appServer}"/>
+    </copy>
+
+    <!-- convert path to use forward slash if containing backward slash -->
+    <path id="toBeConvertConfigRoot">
+       <pathelement location="${configRoot}"/>
+    </path>
+    <pathconvert dirsep="/" property="convertConfigRoot" refid="toBeConvertConfigRoot"/>
+
+    <!-- Calls wsadmin to copy portion of serverindex.xml -->
+    <wsadmin conntype="NONE" 
+       script="exportAppServer.jacl">
+       <arg value="${exportDir}"/>
+       <arg value="${cell}"/>
+       <arg value="${nodeName}"/>
+       <arg value="${appServer}"/>
+    </wsadmin>
+  </target>
+
+
+  <target name="importAppServer" description="Import application server" depends="checkRelease,checkImportDir,checkAppServer,checkNodeName">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+    <wsadmin conntype="NONE" 
+       script="addImportedServerEntry.jacl">
+       <arg value="${cell}"/>
+       <arg value="${nodeName}"/>
+       <arg value="${appServer}"/>
+    </wsadmin>
+
+    <!-- Copies server files from import directory -->
+    <copy todir="${configRoot}/cells/${cell}/nodes/${nodeName}/servers/${appServer}" overwrite="true">
+      <fileset dir="${importDir}/${appServer}"/>
+    </copy>
+
+    <antcall target="changePartialNodeName"/>
+
+    <wsadmin conntype="NONE" 
+       script="importAppServer.jacl">
+       <arg value="${importDir}"/>
+       <arg value="${cell}"/>
+       <arg value="${nodeName}"/>
+       <arg value="${appServer}"/>
+    </wsadmin>
+  </target>
+
+  <target name="changePartialNodeName" if="changeNodeName.exist" description="Change the nodename" depends="checkChangeNodeName">
+     <!-- this is needed incase source nodeName is different with target nodeName where the app server will get imported -->
+     <!-- The change needed for sslConfig that use nodeName -->
+
+     <!-- Modify server.xml in the server directories under target node -->
+     <echo message="Modifying server.xml for node name from ${sourceNodeName} to ${targetNodeName}"/>
+     <replace dir="${configRoot}/cells/${cell}/nodes/${targetNodeName}" token='="${sourceNodeName}/' value='="${targetNodeName}/'>
+        <include name="**/server.xml"/>
+     </replace>
+
+     <!-- Modify resources.xml in server directories under target node -->
+     <echo message="Modifying resources.xml for node name from ${sourceNodeName} to ${targetNodeName}"/>
+     <replace dir="${configRoot}/cells/${cell}/nodes/${targetNodeName}" token='="${sourceNodeName}/' value='="${targetNodeName}/'>
+        <include name="**/resources.xml"/>
+     </replace>
+
+     <replace dir="${configRoot}/cells/${cell}/nodes/${targetNodeName}" token='="${sourceNodeName}"' value='="${targetNodeName}"'>
+        <include name="**/resources.xml"/>
+     </replace>
+  </target>
+
+  <!-- ============================================================================ -->
+
+
+  <!-- **************************** -->
+  <!-- export/import an application -->
+  <!-- **************************** -->
+
+  <!-- this task if for singe application export only -->
+  <target name="exportApplication" description="Import application" depends="checkRelease,checkExportDir,checkAppName">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+    <antcall target="saveDeploymentFile"/>
+    <antcall target="exportAppBinary"/>
+    <antcall target="getAppData"/>
+    <antcall target="getDepAppData"/>
+  </target>
+
+
+  <!-- this task is for full migration applications export only -->
+  <target name="exportAllApplication" description="Import application binary to the correct URI" depends="checkExportDir">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <property name="appName" value="null"/>
+     <antcall target="exportAppBinary"/>
+     <antcall target="getAppData"/>
+     <antcall target="getDepAppData"/>
+  </target>
+
+
+  <target name="exportAppBinary" description="export an application">   
+    <!-- Calls wsadmin to export application -->
+    <echo message="Exporting application on the source machine"/>
+    <wsadmin conntype="NONE" 
+       script="exportApplication.jacl">
+       <arg value="${exportDir}/source"/>
+       <arg value="${appName}"/>
+    </wsadmin>
+  </target>
+ 
+ 
+  <target name="getAppData" description="get the applications deployment data">
+    <!-- Calls wsadmin to get deployment target of an application -->
+    <echo message="Getting deployment target of application on the source machine"/>
+    <wsadmin conntype="NONE"
+       script="getDeploymentTarget.jacl">
+       <arg value="${exportDir}/source"/>
+       <arg value="${appName}"/>
+    </wsadmin>
+  </target>
+
+
+  <!-- this is needed for single export/import to correctly update the serverindex.xml file -->
+  <target name="getDepAppData" description="get the applications deployment data">
+    <!-- Calls wsadmin to get deployment target of an application -->
+    <!-- save the deployedApplications value on source application will be exported -->
+    <!-- and use the saved data during import to modify deployedApplications on all servers/cluster members -->
+    <!-- that has the applications installed -->
+    <echo message="Getting deployment target of application on the source machine"/>
+    <wsadmin conntype="NONE"
+       script="getDeployedApp.jacl">
+       <arg value="${exportDir}/source"/>
+       <arg value="${appName}"/>
+    </wsadmin>
+  </target>
+
+
+  <!-- This task needed because application modules can be installed on more then one server -->
+  <!-- Copy the deployment.xml from source machine to export directory -->
+  <target name="saveDeploymentFile" description="Save the deployment.xml after import the application">
+    <!-- Copies deployment.xml to the export directory -->
+    <copy tofile="${exportDir}/source/deployment.xml" overwrite="true" file="${configRoot}/cells/${cell}/applications/${appName}.ear/deployments/${appName}/deployment.xml"/>
+  </target>
+
+
+  <!-- this task is for single application import only -->
+  <target name="importApplication" description="Import application binary to the correct URI" depends="checkRelease,checkImportDir,checkAppName">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <antcall target="importAppBinary"/>
+     <antcall target="fixedServerIndex"/>
+     <antcall target="replaceDeploymentFile"/>
+     <antcall target="changeBinariesURL"/>
+  </target>
+
+
+  <!-- this task is for full migration application import only -->
+  <target name="importAllApplication" description="Import application binary to the correct URI" depends="checkImportDir">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <antcall target="importAppBinary"/>
+     <!-- antcall target="fixedServerIndex"/ -->
+     <!-- antcall target="replaceFile"/ -->
+     <!-- antcall target="changeBinariesURL"/ -->
+  </target>
+
+
+  <!-- this task is for updating the binariesURL based on user input -->
+  <target name="changeBinariesURL" description="Update the binaryURL if needed after the deployment.xml get copied over">
+     <wsadmin conntype="NONE"
+        script="changeBinariesURL.jacl">
+        <arg value="${param}"/>
+     </wsadmin>
+  </target>
+
+
+  <target name="importAppBinary" description="Import application binary" depends="checkImportDir">
+    <!-- move the generated appList.jacl file to bin directory -->
+    <copy tofile="${wasHome}/bin/appList.jacl" overwrite="true" file="${importDir}/source/appList.jacl"/>  
+
+    <!-- Calls wsadmin to install application -->
+    <echo message="Installing/importing application on the target machine"/>
+    <wsadmin conntype="NONE" 
+       script="importApplication.jacl">
+       <arg value="${importDir}/source"/>
+       <arg value="${param}"/>
+    </wsadmin>
+  </target>
+
+
+  <!-- This task needed because application modules can be installed on more then one server -->
+  <!-- fix or add entry to serverindex.xml for exported single application -->
+  <target name="fixedServerIndex" description="Add single exported application to serverindex.xml">
+     <echo message="Fixing serverindex file for export a single application"/>
+     <wsadmin conntype="NONE"
+        script="changeServerIndex.jacl">
+        <arg value="${importDir}/source"/>
+     </wsadmin>
+  </target>
+
+
+  <!-- This task needed because application modules can be installed on more then one server -->
+  <!-- Copy the deployment.xml from import directory to the target machine after done importing the app -->
+  <target name="replaceDeploymentFile" description="Replace the deployment.xml after import the application binary">
+      <!-- Copies deployment.xml to the repository -->
+    <copy tofile="${configRoot}/cells/${cell}/applications/${appName}.ear/deployments/${appName}/deployment.xml" overwrite="true" file="${importDir}/source/deployment.xml"/>
+  </target>
+
+
+  <!-- This task needed because application modules can be installed on more then one server -->
+  <!-- Copy the deployment.xml and serverindex.xml from the import directory to the target after done importing the app -->
+  <!-- This task is for full migration of all application in a cell only -->
+  <target name="replaceFile" description="Replace the deployment.xml after import the application binaries">
+     <copy todir="${configRoot}" overwrite="true">
+        <fileset dir="${importDir}/source/applications" casesensitive="yes"/>
+     </copy>
+     <antcall target="renameCellName"/>
+     <property name="cell" value="${env.WAS_CELL}"/>
+     <antcall target="renameNodeName"/>
+  </target>
+
+
+
+  <!-- ============================================================================ -->
+
+
+  <!-- ***************************** -->
+  <!-- export/import a JDBC Provider -->
+  <!-- ***************************** -->
+
+  <target name="exportJDBCProvider" description="Export a JDBCProvider" depends="checkRelease,checkExportDir,checkJdbcName,checkScope,checkNodeName,checkServerName">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+    <!-- Creates the export directory -->
+    <mkdir dir="${exportDir}"/> 
+
+    <!-- Calls wsadmin to save all the informations -->
+    <wsadmin conntype="NONE"
+       script="exportJDBCProvider.jacl">
+       <arg value="${exportDir}"/>
+       <arg value="${jdbcName}"/>
+       <arg value="${scope}"/>
+       <arg value="${cell}"/>
+       <arg value="${nodeName}"/>
+       <arg value="${serverName}"/>
+    </wsadmin>   
+  </target>
+
+
+  <target name="importJDBCProvider" description="Import a JDBCProvider" depends="checkRelease,checkImportDir,checkJdbcName,checkScope,checkNodeName,checkServerName">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+    <!-- Calls wsadmin to create the jdbc provider and all the datasources -->
+    <wsadmin conntype="NONE" 
+       script="importJDBCProvider.jacl">
+       <arg value="${importDir}"/>
+       <arg value="${jdbcName}"/>
+       <arg value="${scope}"/>
+       <arg value="${nodeName}"/>
+       <arg value="${serverName}"/>
+       <arg value="${classpath}"/>
+       <arg value="${nativepath}"/>
+       <arg value="${alias}"/>
+    </wsadmin>
+  </target>
+
+
+  <target name="importPart2" description="this task is to update the node machine" depends="checkNodeRelease">
+     <condition property="Part2Task" value="ForV5Node">
+        <equals arg1="5" arg2="${nodeRelease}"/>
+     </condition>
+
+     <condition property="Part2Task" value="ForV6Node">
+        <equals arg1="6" arg2="${nodeRelease}"/>
+     </condition>
+     <antcall target="importPart2${Part2Task}"/>
+  </target>
+
+
+  <target name="importPart2ForV6Node" description="This is the syncnode operation after import done">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <echo message="Sync Node to DeploymentManager"/>           
+     <antcall target="doSyncNode"/>
+  </target>
+
+
+  <target name="importPart2ForV5Node" description="This is the syncnode operation after import done">
+     <property name="userInstallRoot" value="${wasHome}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <echo message="Sync Node to DeploymentManager"/>           
+     <antcall target="doSyncNode"/>
+  </target>
+
+
+  <!-- ============================================================================ -->
+
+
+  <!-- ****************************************************************************** -->
+  <!-- backup target config directory and installedApps directory before doing import -->
+  <!-- ****************************************************************************** -->
+
+  <!-- Task to save target profileName directory -->
+  <!-- this only include the application binary restore if the application is installed in <profileHome>/installedApps -->
+  <!-- if the application is install on different directory then it was not backed up -->
+  <target name="backup" description="Backup target config repository and installedApps directory" depends="checkImportDir">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <antcall target="copyTargetProfileDir"/>
+  </target>
+
+
+  <target name="copyTargetProfileDir" description="Copy the whole profileName directory of target machine for backup">
+     <echo message="Copying target profileName directory for backup"/>
+     <!-- Create the export directory -->
+     <mkdir dir="${importDir}/target/backup/profile"/>
+
+     <echo message="Copying ${userInstallRoot} to ${importDir}/target/backup/profile"/>  
+     <copy todir="${importDir}/target/backup/profile">
+        <fileset dir="${userInstallRoot}"/> 
+     </copy> 
+  </target>
+
+
+  <!-- ***************************************************************** -->
+  <!-- restore backup if export/import the whole config directory failed -->
+  <!-- ***************************************************************** -->
+
+  <!-- Task restore backup that has been capture when doing the export/import config repository -->
+  <!-- this only include the application binary restore if the application is installed in installedApps -->
+  <!-- if the application is install on different directory then it was not backed up -->
+  <target name="restorebackup" description="Export the whole config repository" depends="checkImportDir">
+     <dirname property="userInstallRoot" file="${env.CONFIG_ROOT}"/>
+     <echo message="Was Home is ${wasHome}"/>
+     <echo message="User Install Root is ${userInstallRoot}"/>
+     <echo message="Config Root is ${configRoot}"/>
+     <echo message="Cell name is ${cell}"/>
+     <echo message="Node name is ${node}"/>
+
+     <antcall target="restoreTargetProfileDir"/>
+  </target>
+
+
+  <target name="cleanup" description="Clean up the original profileName directory before restore the backup"> 
+     <delete includeEmptyDirs="true" quiet="true" failonerror="false">
+        <fileset dir="${userInstallRoot}"/>
+     </delete>
+  </target>
+
+
+  <target name="restoreTargetProfileDir" description="Copy the whole profileName directory of target machine for backup">
+     <echo message="Restore profileName directory"/>
+     <copy todir="${userInstallRoot}" overwrite="true">
+        <fileset dir="${importDir}/target/backup/profile"/> 
+     </copy> 
+  </target>
+
+
+  <!-- ============================================================================ -->
+
+</project>
+

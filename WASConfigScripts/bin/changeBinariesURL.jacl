@@ -1,0 +1,56 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# This script is part of import/export application commands.
+# Hence the script is not intended to be run alone.
+#
+# This script updates binariesURL in deployment.xml
+# on the target machine if necessary based on the user input
+#-----------------------------------------------------------
+
+
+proc changeBinariesURL {param} {
+  global AdminConfig
+
+  puts "BinariesURL passed in by user is $param"
+  # parse the parameter to get the appname and corresponding binariesURL value
+  set params [split $param ";"]
+  foreach par $params {
+     set temps [split $par "="]
+     set appName [lindex [split [lindex $temps 0] "+"] 0]
+     set binURL [lindex $temps 1]
+     
+     # get the deployedObject config id    
+     puts "Getting app deployement info for $appName"
+     set temp [catch {$AdminConfig getid /Deployment:$appName/} dep]
+     puts "Deployment id is $dep"
+     set temp [catch {$AdminConfig showAttribute $dep deployedObject} do]
+     puts "DeployedObject is $do"
+     # modify it
+     puts "Modifying binariesURL for $appName to $binURL"
+     set temp [catch {$AdminConfig modify $do [subst {{binariesURL $binURL}}} modResult]
+     puts "Modify result $modResult"
+     set temp [catch {$AdminConfig save} saveResult]
+     puts "Save result $saveResult"
+  }
+}
+
+
+if {$argc != 1} {
+   puts "changeBinariesURL: This script requires 1 parameter: param"
+   puts "eg: changeBinariesURL appName1+BinariesURL=C:/temp;appName2+BinariesURL=D:/test;appName3+BinariesURL=/usr/tmp"
+} else {
+   set param [lindex $argv 0]
+    
+   # change the necessary binaries URL of an application
+   if {$param != "null"} {
+      puts "Changing the binaries URL of an application"
+      changeBinariesURL $param
+   } else {
+      puts stdout "No need to update any binariesURL of the application imported"
+   }
+}
+

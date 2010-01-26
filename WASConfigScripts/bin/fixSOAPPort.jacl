@@ -1,0 +1,63 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# this script can only change the SOAP port number of 
+# unmanaged server (in Application Server environment) or
+# dmgr (in Network Deployment environment)
+#-----------------------------------------------------------
+
+proc changeSOAPPort {} {
+   global AdminConfig env
+
+   # set the variable map that need to be change
+   set varName1 SOAP_CONNECTOR
+
+   puts "Changing SOAP port number"
+   # open the property file
+   set userInstallPath "$env(user.install.root)" 
+   puts "User install path $userInstallPath"
+   set propFile $userInstallPath/properties/wsadmin.properties
+   puts "Opening $propFile file for write"
+   set temp [catch {open $propFile a} fileId]
+  
+   # check nd or base environment
+   set nd false
+   set sConfig ""
+
+   set temp [catch {$AdminConfig list Server} sList]
+   puts "Server list is $sList"
+   foreach s $sList {
+      set sName [$AdminConfig showAttribute $s name]
+      if {$sName == "dmgr"} {
+         set nd true
+         set sConfig $s
+      }
+   }  
+
+   if {$nd != "true"} {
+      set sConfig [$AdminConfig list Server]
+   }
+
+   # get SOAP Connector port number
+   set soap [$AdminConfig list SOAPConnector $sConfig]
+   set ep [$AdminConfig showAttribute $soap SOAP_CONNECTOR_ADDRESS]
+   set sPort [$AdminConfig showAttribute $ep port] 
+   puts "SOAP Connector port number is $sPort"
+
+   # write the SOAP port number in wsadmin.properties file
+   puts $fileId "\n#------------------------------------------"
+   puts $fileId "# The updated port after importing the server"
+   puts $fileId "#------------------------------------------"
+   puts $fileId "com.ibm.ws.scripting.port=$sPort\n"
+   puts "Done writing the connection port to wsadmin.properties file"
+
+   # close the file
+   set temp [catch {close $fileId}] 
+}
+
+changeSOAPPort 
+
+

@@ -1,0 +1,135 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#----------------------------------------------------------
+# This script is just to import the application binary
+# to the correct binaryURI
+# So it will install on the first server that had the application
+# installed
+#-----------------------------------------------------------
+source appList.jacl
+global appList
+
+proc loadProperties {propFileName} {
+   java::import java.io.FileInputStream
+   java::import java.util.Properties
+
+   set fileprop [java::new Properties]
+   set fileStream [java::new FileInputStream $propFileName]
+
+   puts "Property file will be loaded is $propFileName"
+   $fileprop load $fileStream
+   return $fileprop
+}
+
+
+# do prereq as to delete all the deployedApplications 
+# in all serverindex.xml entry before importing the binaries
+proc cleanup {} {
+   global AdminConfig 
+   puts "Clean up first before importing the binaries"
+   set temp [catch {$AdminConfig list ServerIndex} sis]
+   puts "Server indexes are $sis"
+   foreach si $sis {
+      puts "Server index is $si" 
+      set ses [lindex [$AdminConfig showAttribute $si serverEntries] 0]
+      puts "Server entries are $ses"
+      foreach se $ses {
+         puts "Server index is $se"
+         # delete all the value for attribute deployedApplications
+         set temp [catch {$AdminConfig modify $se {{deployedApplications {}}}} modResult]
+         puts "Modify result $modResult"
+         set temp [catch {$AdminConfig save} saveResult]
+         puts "Save result $saveResult"
+      }
+   }
+}
+
+proc getBinaryURL {appName binURLTag param} {
+   set params [split $param ";"]
+   puts "Param passed in $param"
+   foreach par $params {
+      set properties [split $par "="]
+      set propName [lindex $properties 0]
+      set propValue [lindex $properties 1]
+      if {$propName == "$appName$binURLTag"} {
+         return $propValue
+         break
+      } 
+   }  
+   return "null"
+}
+
+proc importApplication {importDir appName serverType nodeName serverName binaryURL} {
+   global AdminApp AdminConfig eartag
+   set file $importDir/$appName$eartag 
+   puts "Install/import application $appName on node $nodeName, $serverType $serverName on $binaryURL"
+   if {$serverType == "server"} {
+      set temp [catch {$AdminApp install $file [subst {-appname $appName -node $nodeName -server $serverName -installed.ear.destination "$binaryURL"}] } installResult]
+      puts "Install result $installResult"
+   } else {
+      set temp [catch {$AdminApp install $file [subst {-appname $appName -cluster $serverName -installed.ear.destination "$binaryURL"}] } installResult]
+      puts "Install result $installResult"
+   }
+}
+
+if {$argc != 2} {
+   puts "importApplication: This script requires 2 parameter: importDir param"
+   puts "eg: importApplication /temp/exportImportDir appName1+BinariesURL=C:/temp;appName2+BinariesURL=/usr/temp;appName3+BinariesURL=D:/test
+} else {
+   set importDir [lindex $argv 0]
+   set param [lindex $argv 1]
+   puts "Param passed in $param"
+
+   # import all applications from importDir that was exported
+   if {$appList != {} || $appList != ""} {
+      puts stdout "Application that has been exported and will be imported are $appList"
+      set nameTag +Name
+      set typeTag +Type
+      set nodeTag +Node
+      set serverTag +Server
+      set binURLTag +BinariesURL
+
+      cleanup
+
+      foreach app $appList {
+         # read deploymenTarget.properties file to get the data on each application
+         set props [loadProperties $importDir/deploymentTarget.properties]
+         set appName [$props getProperty $app$nameTag]
+         set serverType [$props getProperty $app$typeTag]
+         set nodeName [$props getProperty $app$nodeTag]
+         set serverName [$props getProperty $app$serverTag]
+         set binURL [$props getProperty $app$binURLTag]
+ 
+         set binaryURL ""       
+         if {$param != "null"} {
+            set updatedBinURL [getBinaryURL $app $binURLTag $param]
+            if {$updatedBinURL != "null"} {
+               set binaryURL $updatedBinURL
+            } else {
+               set binaryURL $binURL
+            }
+         } else {
+            set binaryURL $binURL
+         }
+
+         # trim off the earfile name at the end of the binaryURL path
+         set eartag .ear 
+         # get the last index
+         set lastIndex [string first $appName$eartag $binaryURL]
+         if {$lastIndex != -1} {
+            set binaryURL [string range $binaryURL 0 [expr $lastIndex - 2]]          
+         }
+ 
+         importApplication $importDir $appName $serverType $nodeName $serverName $binaryURL
+         set temp [catch {$AdminConfig save} saveResult]
+         puts "Save result $saveResult"
+      }   
+   } else {
+      puts "Cannot find any exported application. No application is being imported."
+      exit
+   } 
+}
+

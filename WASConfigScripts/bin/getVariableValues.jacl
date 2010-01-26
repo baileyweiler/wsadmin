@@ -1,0 +1,108 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# This script is used to get and save some variable maps
+# from the target machine before the whole config directory
+# imported.   
+# This script only take care WAS_INSTALL_ROOT, JAVA_HOME
+# and MQ_INSTALL_ROOT, USER_INSTALL_ROOT
+# variable mapping in the Node level only.
+#-----------------------------------------------------------
+
+proc getVariableValues {importDir} {
+   global AdminConfig openId 
+   # get all node 
+   set temp [catch {$AdminConfig list Node} nodeIds]
+   puts "List of nodes are $nodeIds"
+  
+   # setting all variable names that will be capture
+   set varName1 WAS_INSTALL_ROOT
+   set varName2 JAVA_HOME
+   set varName3 MQ_INSTALL_ROOT
+   set varName4 USER_INSTALL_ROOT
+   
+   # get variable maps and variable substitution for the above variable names on each node 
+   # and write it to the property file
+   foreach nodeId $nodeIds { 
+      set node [lindex [split $nodeId (] 0]
+      puts "Getting variable maps for node $node"
+      set temp [catch {$AdminConfig getid /Node:$node/VariableMap:/} varMap]
+      puts "Variable map is $varMap"
+      set varSubst [lindex [$AdminConfig showAttribute $varMap entries] 0]
+      puts "Entries is $varSubst"
+
+
+      puts "Variable WAS_INSTALL_ROOT"
+      # get the value of WAS_INSTALL_ROOT
+      foreach subst $varSubst {
+         set temp [catch {$AdminConfig showAttribute $subst symbolicName} varName]
+         if {$varName == $varName1} {
+            set temp [catch {$AdminConfig showAttribute $subst value} varValue]
+            puts "Variable WAS_INSTALL_ROOT value is $varValue"
+            # write to the properties file
+            puts $openId "# variables for nodes $node"
+            puts $openId "$node$varName1=$varValue"
+            break
+         }    
+      }
+
+      puts "Variable JAVA_HOME"
+      # get the value of JAVA_HOME
+      foreach subst $varSubst {
+         set temp [catch {$AdminConfig showAttribute $subst symbolicName} varName]
+         if {$varName == $varName2} {
+            set temp [catch {$AdminConfig showAttribute $subst value} varValue]
+            puts "Variable JAVA_HOME value is $varValue"
+            # write to the properties file
+            puts $openId "$node$varName2=$varValue"
+            break
+         }    
+      }
+
+      # get the value of MQ_INSTALL_ROOT
+      foreach subst $varSubst {
+         set temp [catch {$AdminConfig showAttribute $subst symbolicName} varName]
+         if {$varName == $varName3} {
+            set temp [catch {$AdminConfig showAttribute $subst value} varValue]
+            puts "Variable MQ_INSTALL_ROOT value is $varValue"
+            # write to the properties file
+            puts $openId "$node$varName3=$varValue"
+            break
+         }    
+      }
+
+      # get the value of USER_INSTALL_ROOT
+      foreach subst $varSubst {
+         set temp [catch {$AdminConfig showAttribute $subst symbolicName} varName]
+         if {$varName == $varName4} {
+            set temp [catch {$AdminConfig showAttribute $subst value} varValue]
+            puts "Variable USER_INSTALL_ROOT value is $varValue"
+            # write to the properties file
+            puts $openId "$node$varName4=$varValue"
+            puts $openId "\n\n"
+            break
+         }    
+      }
+   }
+}
+
+if {$argc != 1} {
+   puts "getVariableValues: This script requires 1 parameter: importDir"
+   puts "eg: getVariableValues /temp/exportImportDir"
+} else {
+   set importDir [lindex $argv 0]
+
+   #create a property file to keep the deployment target data
+   puts "Creating variableMapping.properties file in $importDir"
+   set fileName $importDir/variableMapping.properties
+   set temp [catch {open $fileName w} openId]
+   
+   getVariableValues $importDir
+}
+
+# close file
+set temp [catch {close $openId}]
+

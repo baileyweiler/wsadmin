@@ -1,0 +1,141 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# this script can only change the variable on the local node 
+# in nd environment user need to change the variable value
+# if neccessary in variable.xml on all other nodagents
+# this change only for WAS_INSTALL_ROOT, JAVA_HOME and
+# MQ_INSTALL_ROOT, USER_INSTALL_ROOT
+# variable that is in node level
+#-----------------------------------------------------------
+
+proc loadProperties {propFileName} {
+   java::import java.io.FileInputStream
+   java::import java.util.Properties
+
+   set fileprop [java::new Properties]
+   set fileStream [java::new FileInputStream $propFileName]
+
+   puts "Property file will be loaded is $propFileName"
+   $fileprop load $fileStream
+   return $fileprop
+}
+
+proc changeVarValue {importDir nodeName} {
+   global AdminConfig
+
+   # set the variable map that need to be change
+   set varName1 WAS_INSTALL_ROOT
+   set varName2 JAVA_HOME
+   set varName3 MQ_INSTALL_ROOT
+   set varName4 USER_INSTALL_ROOT
+
+   puts "Changing variable values of node $nodeName"
+   # load the property file
+   puts "Loading variableMapping.properties file"
+   set props [loadProperties $importDir/variableMapping.properties]
+
+   # get variableMap for this node
+   set temp [catch {$AdminConfig getid /Node:$nodeName/VariableMap:/} varMap]
+   puts "VariableMap is $varMap"
+   set subst [lindex [$AdminConfig showAttribute $varMap entries] 0]
+   puts "Entries is $subst"
+
+   puts "WAS_INSTALL_ROOT variable map"
+   # modify WAS_INSTALL_ROOT variable map
+   foreach sub $subst {
+      set temp [catch {$AdminConfig showAttribute $sub symbolicName} varName]
+      if {$varName == $varName1} {
+         #get the value from the property file
+         set newVarValue [$props getProperty $nodeName$varName1]
+         puts "New value is $newVarValue"
+         if {$newVarValue != ""} {
+            puts "Modifying WAS_INSTALL_ROOT variable value"
+            set temp [catch {$AdminConfig modify $sub [subst {{value "$newVarValue"}}] } modResult]
+            puts "Modify result $modResult"
+            set temp [catch {$AdminConfig save} saveResult]
+            puts "Save result $saveResult"
+            break
+         }
+      }
+   }
+
+   puts "JAVA_HOME variable map"
+   # modify JAVA_HOME variable map
+   foreach sub $subst {
+      set temp [catch {$AdminConfig showAttribute $sub symbolicName} varName]
+      if {$varName == $varName2} {
+         #get the value from the property file
+         set newVarValue [$props getProperty $nodeName$varName2]
+         puts "New value is $newVarValue"
+         if {$newVarValue != ""} {
+            puts "Modifying JAVA_HOME variable value"
+            set temp [catch {$AdminConfig modify $sub [subst {{value "$newVarValue"}}] } modResult]
+            puts "Modify result $modResult"
+            set temp [catch {$AdminConfig save} saveResult]
+            puts "Save result $saveResult"
+            break
+         }
+      }
+   }
+
+   puts "MQ_INSTALL_ROOT variable map"
+   # modify MQ_INSTALL_ROOT variable map
+   foreach sub $subst {
+      set varName [$AdminConfig showAttribute $sub symbolicName]
+      if {$varName == $varName3} {
+         #get the value from the property file
+         set newVarValue [$props getProperty $nodeName$varName3]
+         puts "New value is $newVarValue"
+         if {$newVarValue != ""} {
+            puts "Modifying MQ_INSTALL_ROOT variable value"
+            set temp [catch {$AdminConfig modify $sub [subst {{value "$newVarValue"}}] } modResult]
+            puts "Modify result $modResult"
+            set temp [catch {$AdminConfig save} saveResult]
+            puts "Save result $saveResult"
+            break
+         }
+      }
+   }
+
+   puts "USER_INSTALL_ROOT variable map"
+   # modify USER_INSTALL_ROOT variable map
+   foreach sub $subst {
+      set temp [catch {$AdminConfig showAttribute $sub symbolicName} varName]
+      if {$varName == $varName4} {
+         #get the value from the property file
+         set newVarValue [$props getProperty $nodeName$varName4]
+         puts "New value is $newVarValue"
+         if {$newVarValue != ""} {
+            puts "Modifying USER_INSTALL_ROOT variable value"
+            set temp [catch {$AdminConfig modify $sub [subst {{value "$newVarValue"}}] } modResult]
+            puts "Modify result $modResult"
+            set temp [catch {$AdminConfig save} saveResult]
+            puts "Save result $saveResult"
+            break
+         }
+      }
+   }
+}
+
+if {$argc != 1} {
+   puts "changeVariableValues: This script requires 1 parameters: importDir"
+   puts "eg: changeVariableValues /temp/exportImportDir"
+} else {
+   set importDir [lindex $argv 0]
+   set temp [catch {$AdminConfig list Node} nodes]
+   puts "List of nodes are $nodes"
+   # do for all nodes incase all the target nodes and source nodes has the same name
+   # then it fix the variable mapping to reflect to the target nodes automatically here
+   # but if target node and source node has different name then the variable fix will
+   # be taken care in renameNode task                             
+   foreach node $nodes {
+      set nodeName [lindex [split $node (] 0]
+      puts "Changing some variable values for node $nodeName"
+      changeVarValue $importDir $nodeName
+   }
+}
+

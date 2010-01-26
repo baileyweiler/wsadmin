@@ -1,0 +1,64 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# export an application to a specified exportDir directory
+# this will generate new earfile in that directory and
+# will use that ear file to do import which is install that ear
+# on the imported machine
+#-----------------------------------------------------------
+
+proc exportApplication {exportDir appName} {
+   global AdminApp 
+   puts "Exporting $exportDir/$appName.ear"
+   set temp [catch {$AdminApp export $appName "$exportDir/$appName.ear"} exportResult]
+   puts "Export application result $exportResult"
+}
+
+if {$argc != 2} {
+   puts "exportApplication: This script requires 2 parameters: exportDir and application name"
+   puts "eg: exportApplication /temp/exportImportDir myapp"
+} else {
+   set exportDir [lindex $argv 0]
+   set appName [lindex $argv 1]
+
+   # open file to save all application names that will be export
+   puts "Creating file appList.jacl"
+   set fileName $exportDir/appList.jacl
+   set temp [catch {open $fileName w} openId]
+
+   # check the application that will be exported, if null that means it will
+   # export all the application that has been installed
+   if {$appName == "null"} {
+      puts "Exporting all installed applications"
+      # get all applications name
+      set temp [catch {$AdminApp list} appList]  
+      puts "Application will be exported $appList"
+      
+      # check if the list is empty or not
+      set appListConvert {}
+      if {$appList != {} || $appList != ""} {
+         foreach app $appList {
+            set appListConvert [linsert $appListConvert end $app] 
+            exportApplication $exportDir $app
+         }   
+         set appListConvert [list $appListConvert]
+         puts "App list convert is $appListConvert"
+         puts $openId "set appList $appListConvert"
+      } else {
+         puts $openId "set appList {}"
+         puts "Cannot find any installed application. No application is exported."
+      } 
+   } else {
+      # just export the specific application
+      puts "Exporting application $appName"
+      puts $openId "set appList [list $appName]"
+      exportApplication $exportDir $appName
+   }
+}
+
+# close file
+set temp [catch {close $openId}]
+

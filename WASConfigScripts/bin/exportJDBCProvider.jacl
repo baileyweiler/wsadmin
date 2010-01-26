@@ -1,0 +1,341 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# getting all the configuration for a JDBCProvider and DataSources
+#-----------------------------------------------------------
+proc exportJDBCProvider {exportDir jdbcName scope cell node server} {
+   global AdminConfig
+
+   # file to put useful info
+   set jdbcDatasFile $exportDir/jdbcDatasFile.jacl
+   set jdbcFileID [open $jdbcDatasFile w]
+
+   # EXPORT JDBCPROVIDER
+   # get the jdbc and datasources config id
+   # check if scope is not null
+   if {$scope == "null"} {
+      puts stdout "Please provide the scope of the jdbc you want to export from."
+      puts stdout "Valid values are Cell, Node, or Server."
+      exit 
+   } else {
+      puts "Exporting jdbc $jdbcName on scope $scope"
+      if {[regexp "cell" [string tolower $scope]] == 1} {
+         set temp [catch {$AdminConfig getid /Cell:$cell/JDBCProvider:$jdbcName/} jdbc]
+         puts "JDBC is $jdbc"
+         if {$jdbc == ""} {
+            puts "Not able to locate JDBCProvider named $jdbcName under cell $cell."
+            return
+         }
+         set temp [catch {$AdminConfig getid /Cell:$cell/JDBCProvider:$jdbcName/DataSource:/} datasources]
+         puts "Data sources are $datasources"
+      } elseif {[regexp "node" [string tolower $scope]] == 1} {
+         set temp [catch {$AdminConfig getid /Node:$node/JDBCProvider:$jdbcName/} jdbc]
+         puts "JDBC is $jdbc"
+         if {$jdbc == ""} {
+            puts "Not able to locate JDBCProvider named $jdbcName under node $node."
+            return
+         }
+         set temp [catch {$AdminConfig getid /Node:$node/JDBCProvider:$jdbcName/DataSource:/} datasources]
+         puts "Data sources are $datasources"
+      } elseif {[regexp "server" [string tolower $scope]] == 1} {
+         if {$server == "null"} {
+            puts stdout "Please rerun the script passing in the server name"
+            exit
+         } else {
+            set temp [catch {$AdminConfig getid /Server:$server/JDBCProvider:$jdbcName/} jdbc]
+            puts "JDBC is $jdbc"
+            if {$jdbc == ""} {
+               puts "Not able to locate JDBCProvider named $jdbcName under server $server."
+               return
+            }
+            set temp [catch {$AdminConfig getid /Server:$server/JDBCProvider:$jdbcName/DataSource:/} datasources]
+            puts "Data sources are $datasources"
+         }
+      }
+   }
+
+   # save the configuration datas of the jdbc provider
+   puts "Saving the configuration data for JDBC $jdbc to be exported"
+   set temp [catch {$AdminConfig showAttribute $jdbc description} description]
+   puts "Description is $description"
+   set temp [catch {$AdminConfig showAttribute $jdbc xa} xa] 
+   puts "XA is $xa"
+
+   set temp [catch {$AdminConfig showAttribute $jdbc classpath} classpath]
+   puts "Classpath is $classpath"
+   if {$classpath != "" || $classpath != {}} {
+     # fix up path if contain $
+     set splits [split $classpath $]
+     if {[llength $splits] > 1} {
+        set cp [lindex $splits 0]
+        for {set i 1} {$i < [llength $splits]} {incr i 1} {
+           set temp $cp\\$[lindex $splits $i]
+           set cp $temp
+        }
+        set classpath $cp
+     }
+   }
+   puts "Fixed classpath is $classpath"
+
+   set temp [catch {$AdminConfig showAttribute $jdbc nativepath} nativepath]
+   puts "Nativepath is $nativepath"
+   if {$nativepath != "" || $nativepath != {}} {
+     # fix up path if contain $
+     set splits [split $nativepath $]
+     if {[llength $splits] > 1} {
+        set np [lindex $splits 0]
+        for {set i 1} {$i < [llength $splits]} {incr i 1} {
+           set temp $np\\$[lindex $splits $i]
+           set np $temp
+        }
+        set nativepath $np
+     }
+   }
+   puts "Fixed nativepath is $nativepath"
+
+   set temp [catch {$AdminConfig showAttribute $jdbc implementationClassName} implClassName]
+   puts "ImplementationClassName is $implClassName"
+
+   set jdbcResNameList {}
+   set jdbcResDescList {}
+   set jdbcResReqList {}
+   set jdbcResTypeList {}
+   set jdbcResValueList {}
+
+   set temp [catch {$AdminConfig showAttribute $jdbc propertySet} propSet]
+   puts "PropertySet is $propSet"
+   set propSetNum [llength $propSet]
+   puts $jdbcFileID "# jdbc datas"
+   if {$propSetNum == 0} {
+     set jdbcResPropNum 0
+     puts $jdbcFileID "set jdbcResPropNum $jdbcResPropNum"
+   }
+   puts $jdbcFileID "set jdbcPropSetNum $propSetNum"
+   puts $jdbcFileID "\n"
+   if {$propSet != "" || $propSet != {}} {
+     set jdbcResPropList [lindex [$AdminConfig showAttribute $propSet resourceProperties] 0]
+     if {$jdbcResPropList != "" || $jdbcResPropList != {}} {
+        set jdbcResPropNum [llength $jdbcResPropList] 
+        puts $jdbcFileID "set jdbcResPropNum $jdbcResPropNum"
+        for {set i 0} {$i < $jdbcResPropNum} {incr i 1} {
+           set resProp [lindex $jdbcResPropList $i]
+           puts "JDBC resourceProperty is $resProp"
+           set resPropName [$AdminConfig showAttribute $resProp name]
+           set resPropDesc [$AdminConfig showAttribute $resProp description]
+           set resPropReq [$AdminConfig showAttribute $resProp required]
+           set resPropType [$AdminConfig showAttribute $resProp type]
+           set resPropValue [$AdminConfig showAttribute $resProp value]
+           puts "Name is $resPropName, description is $resPropDesc, required is $resPropReq, type is $resPropType, value is $resPropValue"
+           if {$resPropValue != "" || $resPropValue != {}} {
+              # fix up if contain $
+              set splits [split $resPropValue $]
+              if {[llength $splits] > 1} {
+                 set rpv [lindex $splits 0]
+                 for {set i 1} {$i < [llength $splits]} {incr i 1} {
+                    set temp $rpv\\$[lindex $splits $i]
+                    set rpv $temp
+                 }
+                 set resPropValue $rpv
+              }
+           }
+           puts "Fixed resource property value $resPropValue"
+
+           set jdbcResNameList [linsert $jdbcResNameList end $resPropName]
+           set jdbcResDescList [linsert $jdbcResDescList end $resPropDesc]
+           set jdbcResReqList [linsert $jdbcResReqList end $resPropReq]
+           set jdbcResTypeList [linsert $jdbcResTypeList end $resPropType]
+           set jdbcResValueList [linsert $jdbcResValueList end $resPropValue]
+        }
+     }
+   } 
+
+   # write jdbc datas to the file to be used when import
+   puts $jdbcFileID "set description \"$description\""
+   puts $jdbcFileID "set implClassName $implClassName"
+   puts $jdbcFileID "set xa $xa" 
+   puts $jdbcFileID "set classpath $classpath"
+   puts $jdbcFileID "set nativepath $nativepath"
+   puts $jdbcFileID "set jdbcResNameList \"$jdbcResNameList\""
+   puts $jdbcFileID "set jdbcResDescList \"$jdbcResDescList\""
+   puts $jdbcFileID "set jdbcResReqList \"$jdbcResReqList\""
+   puts $jdbcFileID "set jdbcResTypeList \"$jdbcResTypeList\""
+   puts $jdbcFileID "set jdbcResValueList \"$jdbcResValueList\""
+   puts $jdbcFileID "\n"
+
+
+   # EXPORT DATA SOURCES
+
+   set dsNum [llength $datasources]
+   puts $jdbcFileID "# datasources datas"
+   puts $jdbcFileID "set dsNum $dsNum"
+
+   set dsNameList {}
+   set dsAliasList {}
+   set dsAuthMPList {}
+   set dsCatList {}
+   set dsHelperList {}
+   set dsDescList {}
+   set dsJndiList {}
+   set dsCacheSzList {} 
+   set dsAgedTOList {}
+   set dsConnTOList {}
+   set dsMaxConnList {}
+   set dsMinConnList {}
+   set dsPurgePolList {}
+   set dsReapTmList {}
+   set dsUnusedTOList {}
+
+   foreach ds $datasources {
+      puts "Exporting datasource $ds"
+      set dsName [$AdminConfig showAttribute $ds name]
+      set authAlias [$AdminConfig showAttribute $ds authDataAlias]
+      set authMP [$AdminConfig showAttribute $ds authMechanismPreference]
+      set category [$AdminConfig showAttribute $ds category]
+      set dsHelper [$AdminConfig showAttribute $ds datasourceHelperClassname]
+      set desc [$AdminConfig showAttribute $ds description]
+      set jndi [$AdminConfig showAttribute $ds jndiName]
+      set cacheSize [$AdminConfig showAttribute $ds statementCacheSize]
+      set CP [$AdminConfig showAttribute $ds connectionPool]
+      set ato [$AdminConfig showAttribute $CP agedTimeout]
+      set cto [$AdminConfig showAttribute $CP connectionTimeout]
+      set max [$AdminConfig showAttribute $CP maxConnections]
+      set min [$AdminConfig showAttribute $CP minConnections]
+      set pp [$AdminConfig showAttribute $CP purgePolicy]
+      set rt [$AdminConfig showAttribute $CP reapTime]
+      set uto [$AdminConfig showAttribute $CP unusedTimeout]
+      puts "Name is $dsName, authDataAlias is $authAlias, authMechanismPreference is $authMP, category is $category, datasourceHelperClassname is $dsHelper, description is $desc, jndiName is $jndi, statementCacheSize is $cacheSize, connectionPool is $CP, agedTimeout is $ato, connectionTimeout is $cto, maxConnections is $max, minConnections is $min, purgePolicy is $pp, readTime is $rt, unusedTimeout is $uto"
+
+      set dsNameList [linsert $dsNameList end $dsName]
+      set dsAliasList [linsert $dsAliasList end $authAlias]
+
+      if {[llength $authMP] != 0} {
+         set dsAuthMPList [linsert $dsAuthMPList end $authMP]
+      }
+
+      if {[llength $category] != 0} {
+         set dsCatList [linsert $dsCatList end $category]
+      }
+
+      if {[llength $dsHelper] != 0} {
+         set dsHelperList [linsert $dsHelperList end $dsHelper]
+      }
+
+      if {[llength $desc] != 0} {
+         set dsDescList [linsert $dsDescList end $desc]
+      }
+
+      if {[llength $jndi] != 0} {
+         set dsJndiList [linsert $dsJndiList end $jndi]
+      }
+
+      if {[llength $cacheSize] != 0} {
+         set dsCacheSzList [linsert $dsCacheSzList end $cacheSize]
+      }
+
+      set dsAgedTOList [linsert $dsAgedTOList end $ato]
+      set dsConnTOList [linsert $dsConnTOList end $cto]
+      set dsMaxConnList [linsert $dsMaxConnList end $max]
+      set dsMinConnList [linsert $dsMinConnList end $min]
+      set dsPurgePolList [linsert $dsPurgePolList end $pp]
+      set dsReapTmList [linsert $dsReapTmList end $rt]
+      set dsUnusedTOList [linsert $dsUnusedTOList end $uto]
+
+      set propSet [$AdminConfig showAttribute $ds propertySet]
+      set propSetNum [llength $propSet]
+      if {$propSetNum == 0} {
+         set dsResPropNum 0
+         puts $jdbcFileID "set dsResPropNum $dsResPropNum"
+      }
+
+      set dsResNameList {}
+      set dsResDescList {}
+      set dsResReqList {}
+      set dsResTypeList {}
+      set dsResValueList {}
+
+      puts $jdbcFileID "set dsPropSetNum $propSetNum"
+      if {$propSet != "" || $propSet != {}} {
+         set resPropList [lindex [$AdminConfig showAttribute $propSet resourceProperties] 0]
+         if {$resPropList != "" || $resPropList != {}} {
+           set resPropNum [llength $resPropList] 
+           puts $jdbcFileID "set dsResPropNum $resPropNum"
+           puts $jdbcFileID "\n"
+           for {set i 0} {$i < $resPropNum} {incr i 1} {
+              set resProp [lindex $resPropList $i]
+              puts "DataSource resource property is $resProp"
+              set resPropName [$AdminConfig showAttribute $resProp name]
+              set resPropDesc [$AdminConfig showAttribute $resProp description]
+              set resPropReq [$AdminConfig showAttribute $resProp required]
+              set resPropType [$AdminConfig showAttribute $resProp type]
+              set resPropValue [$AdminConfig showAttribute $resProp value]
+              puts "Name is $resPropName, description is $resPropDesc, required is $resPropReq, type is $resPropType, value is $resPropValue"
+
+              if {$resPropValue != "" || $resPropValue != {}} {
+                 # fix up if contain $
+                 set splits [split $resPropValue $]
+                 if {[llength $splits] > 1} {
+                    set rpv [lindex $splits 0]
+                    for {set j 1} {$j < [llength $splits]} {incr j 1} {
+                       set temp $rpv\\$[lindex $splits $j]
+                       set rpv $temp
+                    }
+                    set resPropValue $rpv
+                 }
+              }
+              puts "Fixed resource property value is $resPropValue"
+
+              set dsResNameList [linsert $dsResNameList end $resPropName]
+              set dsResDescList [linsert $dsResDescList end $resPropDesc]
+              set dsResReqList [linsert $dsResReqList end $resPropReq]
+              set dsResTypeList [linsert $dsResTypeList end $resPropType]
+              set dsResValueList [linsert $dsResValueList end $resPropValue]
+           }
+         }
+      } 
+
+      # write datasource datas to file to be used when import
+      puts $jdbcFileID "set dsNameList \"$dsNameList\""
+      puts $jdbcFileID "set authAliasList \"$dsAliasList\""
+      puts $jdbcFileID "set authMPList \"$dsAuthMPList\""
+      puts $jdbcFileID "set catList \"$dsCatList\""
+      puts $jdbcFileID "set dsHelperList \"$dsHelperList\""
+      puts $jdbcFileID "set descList \"$dsDescList\""
+      puts $jdbcFileID "set jndiList \"$dsJndiList\""
+      puts $jdbcFileID "set cacheSzList \"$dsCacheSzList\""
+      puts $jdbcFileID "set agedTOList \"$dsAgedTOList\""
+      puts $jdbcFileID "set connTOList \"$dsConnTOList\""
+      puts $jdbcFileID "set maxConnList \"$dsMaxConnList\""
+      puts $jdbcFileID "set minConnList \"$dsMinConnList\""
+      puts $jdbcFileID "set purgePolList \"$dsPurgePolList\""
+      puts $jdbcFileID "set reapTmList \"$dsReapTmList\""
+      puts $jdbcFileID "set unusedTOList \"$dsUnusedTOList\""
+      puts $jdbcFileID "set dsResNameList \"$dsResNameList\""
+      puts $jdbcFileID "set dsResDescList \"$dsResDescList\""
+      puts $jdbcFileID "set dsResReqList \"$dsResReqList\""
+      puts $jdbcFileID "set dsResTypeList \"$dsResTypeList\""
+      puts $jdbcFileID "set dsResValueList \"$dsResValueList\""
+      puts $jdbcFileID "\n"
+   }
+
+   # close the file
+   set close [close $jdbcFileID]
+}
+
+if {$argc != 6} {
+   puts "exportJDBCProvider: This script requires 6 parameters: export directory, jdbc name, scope, cell, node, server"
+   puts "Valid values for scope parameter are: Cell, Node, or Server
+   puts ""
+   puts "eg: exportJDBCProvider c:/exportJDBCDir myjdbc Server mycell mynode myserver"
+} else {
+   set exportDir [lindex $argv 0]
+   set jdbcName [lindex $argv 1]
+   set scope [lindex $argv 2]
+   set cell [lindex $argv 3]
+   set node [lindex $argv 4]
+   set server [lindex $argv 5]
+   puts "Exporting jdbc $jdbcName on scope $scope, cell $cell, node $node, server $server"
+   exportJDBCProvider $exportDir $jdbcName $scope $cell $node $server
+}

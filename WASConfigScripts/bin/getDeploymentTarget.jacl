@@ -1,0 +1,116 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# This script is use to get the deployment target from source machine of 
+# the application that will be exported such as nodename, servername and binaryURL.
+# This script will generate a property file that save the 
+# information and the data will be used during import
+# the application to properly imported on the specific node, server and binaryURL.
+#-----------------------------------------------------------
+
+proc getDeploymentTarget {exportDir appName} {
+   global AdminConfig AdminApp openId 
+   # get deployment id
+   puts "Getting deployment info for $appName"
+   set temp [catch {$AdminConfig getid /Deployment:$appName/} dep]
+   puts "Deployment id is $dep"
+   set temp [catch {$AdminConfig showAttribute $dep deployedObject} do] 
+   puts "Deployed object is $do"
+   set temp [catch {$AdminConfig showAttribute $dep deploymentTargets} result]
+   puts "Deployment targets are $result"
+   set depTargets [lindex $result 0]
+   set depTargetLen [llength $depTargets]
+   set depTarget ""
+   if {$depTargetLen == 1} {
+      set depTarget $depTargets
+   } else {
+      # just get the first one and import using this first one capture     
+      set depTarget [lindex $depTargets 0]
+      puts "The first deployment target that the application will be installed $depTarget"
+   }
+
+   set nametag +Name
+   set typetag +Type
+   set servertag +Server
+   set nodetag +Node
+   set binURLtag +BinariesURL
+
+      # do some checking to find out if it is a cluster or a server
+      if {[regexp "ClusteredTarget" $depTarget]} {
+         # it is installed on a cluster
+         puts "Application installed on a Cluster"
+         set temp [catch {$AdminConfig showAttribute $depTarget name} server]
+         puts "Name is $server"
+         set temp [catch {$AdminConfig showAttribute $do binariesURL} binURL]
+         puts "BinariesURL is $binURL"
+
+         # write down to the property file to be use during import 
+         puts $openId "#Deployment target data for $appName"
+         puts $openId "$appName$nametag=$appName"
+         puts $openId "$appName$typetag=cluster" 
+         puts $openId "$appName$servertag=$server"
+         puts $openId "$appName$binURLtag=$binURL"
+         puts $openId "\n\n"
+      } else {
+         # it is installed on a server
+         puts "Application installed on a Server"
+         set temp [catch {$AdminConfig showAttribute $depTarget nodeName} node]
+         puts "Node name is $node"
+         set temp [catch {$AdminConfig showAttribute $depTarget name} server]
+         puts "Name is $server"
+         set temp [catch {$AdminConfig showAttribute $do binariesURL} binURL]
+         puts "BinariesURL is $binURL"
+ 
+         # write down to the property file to be use during import 
+         puts $openId "#Deployment target date for $appName"
+         puts $openId "$appName$nametag=$appName"
+         puts $openId "$appName$typetag=server" 
+         puts $openId "$appName$servertag=$server"
+         puts $openId "$appName$nodetag=$node"
+         puts $openId "$appName$binURLtag=$binURL"
+         puts $openId "\n\n"
+      }
+}
+
+if {$argc != 2} {
+   puts "exportApplication: This script requires 2 parameters: exportDir and application name"
+   puts "eg: getDeploymentTarget /temp/exportImportDir myapp"
+} else {
+   set exportDir [lindex $argv 0]
+   set appName [lindex $argv 1]
+
+   # create a property file to keep the deployment target datas
+   puts "Creating deploymentTarget.properties file in $exportDir"
+   set fileName $exportDir/deploymentTarget.properties
+   set temp [catch {open $fileName w} openId]
+
+   # check the application that will be exported, if null that means it will
+   # export all the application that has been installed
+   if {$appName == "null"} {
+      puts "Exporting all applications"    
+      # get all applications name
+      set temp [catch {$AdminApp list} appList]  
+      puts "List of application will be exported are $appList"
+      
+      # check if the list is empty or not
+      if {$appList != {} || $appList != ""} {
+         foreach app $appList {
+            puts "Getting the deployment target for $app"
+            getDeploymentTarget $exportDir $app
+         }   
+      } else {
+         puts "Can not find any application installed, so export application will not do anything"
+      } 
+   } else {
+      puts "Exporting an application $appName"
+      # just export the specific application
+      getDeploymentTarget $exportDir $appName
+   }
+}
+
+# close file
+set temp [catch {close $openId}]
+

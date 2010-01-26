@@ -1,0 +1,34 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# This script is use to change serverName in CoreGroupServer
+#-----------------------------------------------------------
+
+proc changeServerName {oldName newName} {
+   global AdminConfig 
+   set temp [catch {$AdminConfig getid /CoreGroupServer:/} cgss]
+   foreach cgs $cgss {
+      puts "Core Group Server is $cgs"
+      set sName [$AdminConfig showAttribute $cgs serverName]
+      if {$sName == $oldName} {
+         set temp [catch {$AdminConfig modify $cgs [subst {{serverName $newName}}]} modResult]
+         puts "Modify result $modResult"
+         set temp [catch {$AdminConfig save} saveResult]
+         puts "Save result $saveResult"
+      }
+   }
+}
+
+if {$argc != 2} {
+   puts "updateCoreGroupServer: This script requires 2 parameters: oldName and newName"
+   puts "eg: updateCoreGroupServer.jacl server1 server2"
+   exit
+} else {
+   set oldName [lindex $argv 0]
+   set newName [lindex $argv 1]
+   changeServerName $oldName $newName
+}
+

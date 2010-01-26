@@ -1,0 +1,144 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# Update serverindex.xml for the specified node to include
+# the imported server
+# The script is not intentionally to run it alone as need
+# some dependency with other files, it will be executed part
+# of export/import an application server process only.
+#-----------------------------------------------------------
+
+proc loadProperties {propFileName} {
+   java::import java.io.FileInputStream
+   java::import java.util.Properties
+
+   set fileprop [java::new Properties]
+   set fileStream [java::new FileInputStream $propFileName]
+
+   puts "Property file will be loaded is $propFileName"
+   $fileprop load $fileStream
+   return $fileprop
+}
+
+
+proc updateServerIndex {importDir cell node appServer} {
+   global AdminConfig
+ 
+   set Nametag Name
+   set EPtag EPName
+   set Hosttag Host
+   set Porttag Port
+   set Counttag Count
+
+   puts "Updating end points to reflect with source server end points"
+   # create a new serverEntry for the imported server
+   set temp [catch {$AdminConfig getid /Node:$node/ServerIndex:/} si]
+   puts "Server index of node $node is $si"
+   
+   # get the datas from the properties file
+   puts "Loading appserver.properties file from $importDir"
+   set props [loadProperties $importDir/appserver.properties]
+   set serverName [$props getProperty $appServer$Nametag]
+   set count [$props getProperty $appServer$EPtag$Counttag]
+   puts "ServerName is $serverName and count is $count"
+
+   # get serverEntry for server $appServer
+   set temp [catch {$AdminConfig list ServerEntry $si} sel]
+   foreach se $sel {
+      set sName [$AdminConfig showAttribute $se serverName] 
+      if {$sName == $appServer} {
+         for {set i 0} {$i < $count} {incr i} {
+            set epName [$props getProperty $appServer$EPtag$i]
+            set portNum [$props getProperty $appServer$Porttag$epName]
+            puts "Entry point is $epName and port is $portNum"
+            set endPointAttrs [list [list port $portNum]]
+            # get the match one and then modify
+            set seps [lindex [$AdminConfig showAttribute $se specialEndpoints] 0]
+            foreach sep $seps {
+               set epn [$AdminConfig showAttribute $sep endPointName]
+               if {$epName == $epn} {
+                  # get the endpoint id
+                  set ep [lindex [$AdminConfig showAttribute $sep endPoint] 0]
+                  puts "Modifying $ep $epn endPoint with $endPointAttrs"
+                  set temp [catch {$AdminConfig modify $ep $endPointAttrs} modResult]
+                  puts "Modify result $modResult"
+                  break
+               }
+            }
+         }
+      }
+   }
+}
+
+
+# this is only needed if the imported server is the server that has all systemapps installed
+proc updateVirtualHost {importDir appServer} { 
+   global AdminConfig
+
+   set Nametag Name
+   set EPtag1 WC_
+   set EPtag2 host
+   set EPtag3 _secure
+   set EPName1 admin
+   set EPName2 default 
+   set Porttag Port
+   set Hosttag _host
+
+   # get the datas from the properties file
+   puts "Loading appserver.properties file from $importDir"
+   set props [loadProperties $importDir/appserver.properties]
+   set adminHostPort [$props getProperty $appServer$Porttag$EPtag1$EPName1$EPtag2]
+   set adminHostSecurePort [$props getProperty $appServer$Porttag$EPtag1$EPName1$EPtag2$EPtag3]
+   puts "adminhost port from source server is $adminHostPort and $adminHostSecurePort"
+   set defaultHostPort [$props getProperty $appServer$Porttag$EPtag1$EPName2$EPtag2]
+   set defaultHostSecurePort [$props getProperty $appServer$Porttag$EPtag1$EPName2$EPtag2$EPtag3]
+   puts "defaulthost port from source server is $defaultHostPort and $defaultHostSecurePort"
+  
+
+   # modify the port that is in virtualHost.xml file under cell directory
+   # to make sure the port number reflect to the imported server
+   set temp [catch {$AdminConfig list VirtualHost} vhs]
+   foreach vh $vhs {
+      set vhName [lindex [split $vh (] 0]
+      if {$vhName == "$EPName1$Hosttag"} {
+         puts "Updating $vhName port numbers"
+         set temp [catch {$AdminConfig showAttribute $vh aliases} als]
+         # assuming the first index will be the non secure and second index will be the secure one
+         set al1 [lindex $als 0]
+         set al2 [lindex $als 1]
+         set temp [catch {$AdminConfig modify $al1 [list [list port $adminHostPort]]} modResult]
+         set temp [catch {$AdminConfig modify $al2 [list [list port $adminHostSecurePort]]} modResult]
+         puts "$vhName port updated to have $adminHostPort and $adminHostSecurePort"
+      } elseif {$vhName == "$EPName2$Hosttag"} {
+         puts "Updating $vhName port numbers"
+         set temp [catch {$AdminConfig showAttribute $vh aliases} als]
+         # assuming the first index will be the non secure and second index will be the secure one
+         set al1 [lindex $als 0]
+         set al2 [lindex $als 1]
+         set temp [catch {$AdminConfig modify $al1 [list [list port $defaultHostPort]]} modResult]
+         set temp [catch {$AdminConfig modify $al2 [list [list port $defaultHostSecurePort]]} modResult]
+         puts "$vhName port updated to have $defaultHostPort and $defaultHostSecurePort"
+      }
+   }  
+}
+
+
+if {$argc != 4} {
+   puts "importAppServer: This script requires 4 parameters: import directory, cell, node, and application server"
+   puts "eg: importAppServer /importDir testCell testNode server1"
+} else {
+   puts "Inside importAppServer.jacl script"
+   set importDir [lindex $argv 0]
+   set cell [lindex $argv 1]
+   set node [lindex $argv 2]
+   set appServer [lindex $argv 3]
+   puts "Importing AppServer $appServer on cell $cell node $node"
+   updateServerIndex $importDir $cell $node $appServer
+   #updateVirtualHost $importDir $appServer
+   set temp [catch {$AdminConfig save} saveResult]
+   puts "Save result $saveResult"
+}
+

@@ -1,0 +1,177 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# This script is use to get the deployedApplications attribute value
+# from source machine for the application that will be exported.
+# This script will generate a property file that save the value
+# and used to modify deployedApplications attribute on target machine
+# for all servers/cluster members that has the application imported.
+#-----------------------------------------------------------
+
+proc getDeployedApp {exportDir appName} {
+   global AdminConfig openId 
+   # get deployment id and setting up some variables
+   puts "Getting app deployment info for $appName"
+   set temp [catch {$AdminConfig getid /Deployment:$appName/} dep]
+   puts "Deployment id is $dep"
+
+   if {$dep == "" || $dep == {}} {
+       puts stdout "The application $appName that you want to export does not exist"
+       exit
+   }
+
+   set temp [catch {$AdminConfig showAttribute $dep deployedObject} do] 
+   puts "Deployed object is $do"
+   set temp [catch {$AdminConfig showAttribute $dep deploymentTargets} result]
+   puts "Deployment targets are $result"
+   set depTargets [lindex $result 0]
+   set nametag Name
+   set counttag Count
+   set servertag Server
+   set nodetag Node
+   set deptag Deployed
+
+   puts $openId "#Deployed application data for $appName"
+   puts $openId "$appName$nametag=$appName"
+
+   set count 0
+   foreach depTarget $depTargets {
+      # do some checking to find out if it is a cluster or a server
+      if {[regexp "ClusteredTarget" $depTarget]} {
+         puts "Deployment target is a Cluster"
+         # it is installed on a cluster so need to go further to get
+         # all the cluster members to appropriately add the data 
+         # to serverindex.xml
+
+         set temp [catch {$AdminConfig showAttribute $depTarget name} cName]
+         puts "Cluster name is $cName"
+         
+         # get cluster config id
+         set temp [catch {$AdminConfig getid /ServerCluster:$cName/} clusterId]
+         puts "Cluster config id is $clusterId"
+ 
+         # get all the members for that cluster
+         set cmembers [lindex [$AdminConfig showAttribute $clusterId members] 0]
+         puts "Cluster members are $cmembers"
+
+         # get all the server and node target
+         foreach mem $cmembers {
+            puts "Cluster member is $mem"
+            set temp [catch {$AdminConfig showAttribute $mem memberName} server]
+            puts "Member name is $server"
+            set temp [catch {$AdminConfig showAttribute $mem nodeName} node]  
+            puts "Node name is $node"
+
+            # get the string to be added in the serverindex file
+            set temp [catch {$AdminConfig getid /Node:$node/ServerIndex:/} si]
+            puts "Server index is $si"
+            set ses [lindex [$AdminConfig showAttribute $si serverEntries] 0] 
+            puts "Server Entries are $ses"
+            foreach se $ses {
+               puts "Server Entry is $se"
+               set sName [$AdminConfig showAttribute $se serverName]
+               if {$sName == $server} {
+                  set appdepList [split [$AdminConfig showAttribute $se deployedApplications] ";"]
+                  puts "App deployment list in server index $appdepList"
+                  foreach appdep $appdepList {
+                     if {[regexp $appName $appdep]} {
+                        set appString $appdep
+                        puts "App string for $appName is $appString"
+                        break
+                     }
+                  }
+               }
+            }      
+
+            # write down to the property file to be use during import 
+            puts $openId "$appName$servertag$count=$server"
+            puts $openId "$appName$nodetag$count=$node"
+            incr count 1
+         }               
+      } else {
+         # it is installed on a server then check if the app 
+         # is installed on multiple servers and capture it in the file
+         # to be use to edit the appropriate serverindex.xml 
+         # during importing the application
+
+         puts "Deployment target is a Server"
+         set temp [catch {$AdminConfig showAttribute $depTarget name} server]
+         puts "Server is $server"
+         set temp [catch {$AdminConfig showAttribute $depTarget nodeName} node]
+         puts "Node is $node"
+     
+         # get the string to be added in the serverindex file
+         set temp [catch {$AdminConfig getid /Node:$node/ServerIndex:/} si]
+         puts "Server index is $si"
+         set ses [lindex [$AdminConfig showAttribute $si serverEntries] 0] 
+         foreach se $ses {
+            puts "Server entry is $se"
+            set temp [catch {$AdminConfig showAttribute $se serverName} sName]
+            puts "ServerName is $sName"
+            if {$sName == $server} {
+               set appdepList [split [$AdminConfig showAttribute $se deployedApplications] ";"]
+               puts "App deployment list in server index $appdepList"
+               foreach appdep $appdepList {
+                  if {[regexp $appName $appdep]} {
+                     set appString $appdep
+                     puts "App string for $appName is $appString"
+                     break
+                  }
+               }
+            }
+         }
+
+         # write down to the property file to be use during import 
+         puts $openId "$appName$servertag$count=$server"
+         puts $openId "$appName$nodetag$count=$node"
+         incr count 1
+      }
+   }
+   # write down to the property file to be use during import 
+   puts $openId "$appName$counttag=$count" 
+   puts $openId "$appName$deptag=$appString"
+   puts $openId "\n\n"
+}
+
+if {$argc != 2} {
+   puts "exportApplication: This script requires 2 parameters: exportDir and application name"
+   puts "eg: getDeployedApp  /temp/exportImportDir  myapp"
+   exit
+} else {
+   set exportDir [lindex $argv 0]
+   set appName [lindex $argv 1]
+
+   # create a property file to keep the deployment target datas
+   puts "Creating deployedApp.properties file in $exportDir"
+   set fileName $exportDir/deployedApp.properties
+   set temp [catch {open $fileName w} openId]
+
+   # check the application that will be exported, if null that means it will
+   # get all the application data 
+   if {$appName == "null"} {
+      # get all applications name
+      set temp [catch {$AdminApp list} appList]  
+      puts "Application will be exported are $appList"    
+ 
+      # check if the list is empty or not
+      if {$appList != {} || $appList != ""} {
+         foreach app $appList {
+            puts "Getting the deployment target for $app"
+            getDeployedApp $exportDir $app
+         }   
+      } else {
+         puts "Can not find any application installed, so export application will not do anything"
+         exit
+      } 
+   } else {
+      # just get the specific application data
+      getDeployedApp $exportDir $appName
+   }
+}
+
+# close file
+set temp [catch {close $openId}]
+

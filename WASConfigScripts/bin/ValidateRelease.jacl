@@ -1,0 +1,70 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# this script to check WebSphere release
+#-----------------------------------------------------------
+
+proc fileExist {fileName} {
+  set temp [catch {file exists $fileName} existence]
+  if {$existence == 1} {
+     puts "Deleting the existing $fileName first"
+     set temp [catch {file delete $fileName} delResult]
+     set temp [catch {file exists $fileName} exist]
+     if {$exist == 1} {
+        puts "File delete fail to delete existing file $fileName"
+        puts "File still exist"
+     } 
+  }
+}
+
+proc isRelease6 {fileName version6Filename} {
+    global AdminConfig AdminTask openId
+    set isRelease6 false
+    if {[catch {$AdminConfig list Node} nodeList]} {
+       if {[catch {$AdminTask help} result]} {
+          puts "This script only work on release 6 or later environment"
+          set temp [catch {open $filename w} file5Id]
+          puts $file5Id "The Release check is showing WebSphere Release 5 env"
+          puts $file5Id "This script only work on release 6 or later"
+          puts $file5Id "AdminTask help returns $result"
+          exit
+       } else {
+          puts ""
+       }
+    } else {
+       puts "List of Node is $nodeList"
+       foreach node $nodeList {
+          set nodeName [$AdminConfig showAttribute $node name]
+          if {[catch {$AdminTask getNodeMajorVersion [subst {-nodeName $nodeName}]} result]} {
+             if {[catch {$AdminTask help} result]} {
+                puts "You run the script on unsupported release environment"
+                puts "This script only work on release 6 or later"
+                set temp [catch {open $filename w} file5Id]
+                puts $file5Id "The Release check is showing WebSphere Release 5 env"
+                puts $file5Id "This script only work on release 6 or later"
+                puts $file5Id "AdminTask help returns $result"
+                exit
+             } else {
+                puts ""
+             }
+          } else {
+             puts ""
+          }
+       }
+    }
+
+    set temp [catch {open $version6Filename w} openId]
+    puts $openId "Check release show that it is WebSphere Release6 env"
+    set temp [catch {close $openId}]
+}
+
+puts "Executing ValidateRelease.jacl script"
+set fileName release5.log
+set version6Filename version6.log
+fileExist $fileName
+fileExist $version6Filename
+isRelease6 $fileName $version6Filename
+

@@ -1,0 +1,22 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------
+# This script is use to uninstall all applications that exist in the target machine 
+# This script only get called on importConfigRepository task
+#-----------------------------------------------------------------------------------
+
+
+set temp [catch {$AdminApp list} appList]
+puts "List of application will be uninstalled are $appList"
+
+foreach app $appList {
+   set temp [catch {$AdminApp uninstall $app} uninstallResult]
+   puts "Uninstall result $uninstallResult"
+   set temp [catch {$AdminConfig save} saveResult]
+   puts "Save result $saveResult"
+}
+
+

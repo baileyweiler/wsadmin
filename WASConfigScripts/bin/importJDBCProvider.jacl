@@ -1,0 +1,169 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# import the JDBCProvider and DataSources
+#-----------------------------------------------------------
+proc importJDBCProvider {jdbcName scope node server classp nativep authAlias} { 
+   global AdminConfig description implClassName xa classpath nativepath jdbcPropSet jdbcPropSetNum jdbcResPropNum 
+   global jdbcResNameList jdbcResDescList jdbcResReqList jdbcResTypeList jdbcResValueList
+   global dsNameList authAliasList authMPList catList dsHelperList descList jndiList cacheSzList CPList dsNum dsPropSetNum dsResPropNum  
+   global agedTOList connTOList maxConnList minConnList purgePolList reapTmList unusedTOList 
+   global dsResNameList dsResDescList dsResReqList dsResTypeList dsResValueList
+
+   puts "Passed in parameters for $jdbcName are scope $scope, node $node, server $server, classpath $classp, nativepath is $nativep, authAlias is $authAlias"
+
+   puts "Importing JDBC" 
+   # IMPORT JDBCPROVIDER
+   # find the parent config id based on the scope
+   if {$scope == "null"} {
+      puts stdout "Please provide the scope of the jdbc you want to import to" 
+      puts stdout "Valid values for scope are: Cell, Node, Server"
+      exit
+   } else {
+      if {[regexp "cell" [string tolower $scope]] == 1} {
+         set temp [catch {$AdminConfig list Cell} parent]
+         puts "Parent is $parent"
+      } elseif {[regexp "node" [string tolower $scope]] == 1} {
+         set temp [catch {$AdminConfig getid /Node:$node/} parent]
+         puts "Parent is $parent"
+      } elseif {[regexp "server" [string tolower $scope]] == 1} {
+         set temp [catch {$AdminConfig getid /Server:$server/} parent]
+         puts "Parent is $parent"
+      }
+   }
+
+   # collect all the configuration data to create the JDBCProvider
+   set name [list name $jdbcName]
+   set desc [list description $description]
+   set implCN [list implementationClassName $implClassName]
+
+   set xa [list xa $xa]
+   # if user specify the pass in value for classpath then use the pass in value
+   # if not then just import it as is 
+   if {$classp != "null"} {
+      set cp [list classpath $classp]
+   } else {
+      set cp [list classpath $classpath]
+   }
+
+   # if user specify the pass in value for nativepath then use the pass in value
+   # if not then just import it as is 
+   if {$nativep != "null"} {
+      set np [list nativepath $nativep]
+   } else {
+      set np [list nativepath $nativepath]
+   }
+
+   set attrs [list $name $desc $implCN $xa $cp $np]
+
+   # create the jdbc
+   puts "Creating the JDBCProvider using attributes $attrs"
+   set temp [catch {$AdminConfig create JDBCProvider $parent $attrs} jdbc]
+   puts "Imported JDBC is $jdbc"
+
+   if {$jdbcPropSetNum != "0"} {
+     # create the J2EEResourcePropertySet
+     puts "Creating the J2EEResourcePropertySet for jdbc"
+     set temp [catch {$AdminConfig create J2EEResourcePropertySet $jdbc {}} jdbcPropSet]
+     puts "New J2EEResourcePropertySet is $jdbcPropSet"
+     # create all the J2EEResourceProperties
+     for {set j 0} {$j < $jdbcResPropNum} {incr j 1} {
+        set name [list name [lindex $jdbcResNameList $j]]
+        set desc [list description [lindex $jdbcResDescList $j]]
+        set req [list required [lindex $jdbcResReqList $j]]
+        set type [list type [lindex $jdbcResTypeList $j]]
+        set value [list value [lindex $jdbcResValueList $j]]
+        set attr [list $name $desc $req $type $value]
+        puts "Creating new J2EEResourceProperty for $jdbcPropSet using attributes $attr"
+        set temp [catch {$AdminConfig create J2EEResourceProperty $jdbcPropSet $attr} resProp]
+        puts "New J2EEResourceProperty is $resProp"
+     }
+   }
+
+   puts "Importing DataSource" 
+   # IMPORT DATASOURCE
+   # collect all the configuration data to create the datasources
+   for {set i 0} {$i < $dsNum} {incr i 1} {
+      # collect all the configuration data to create the datasource
+      set name [list name [lindex $dsNameList $i]]
+      if {$authAlias != "null"} {
+         if {[lindex $authAliasList $i] == {} || [lindex $authAliasList $i] == ""} {
+            set authAlias [list authDataAlias {}]
+         } else {
+            set authAlias [list authDataAlias $authAlias]
+         }
+      } else {
+         set authAlias [list authDataAlias [lindex $authAliasList $i]]
+      }
+      set authMP [list authMechanismPreference [lindex $authMPList $i]]
+      set category [list category [lindex $catList $i]]
+      set dsHelper [list datasourceHelperClassname [lindex $dsHelperList $i]]
+      set description [list description [lindex $descList $i]]
+      set jndi [list jndiName [lindex $jndiList $i]]
+      set cacheSz [list statementCacheSize [lindex $cacheSzList $i]]
+      set ato [list agedTimeout [lindex $agedTOList $i]]
+      set cto [list connectionTimeout [lindex $connTOList $i]]
+      set max [list maxConnections [lindex $maxConnList $i]]
+      set min [list minConnections [lindex $minConnList $i]]
+      set pp [list purgePolicy [lindex $purgePolList $i]]
+      set rt [list reapTime [lindex $reapTmList $i]]
+      set uto [list unusedTimeout [lindex $unusedTOList $i]]
+      set cp [list connectionPool [list $ato $cto $max $min $pp $rt $uto]]
+      set attrs [list $name $authAlias $authMP $category $dsHelper $description $jndi $cacheSz $cp]
+ 
+      # create the datasource
+      puts "Creating new DataSource for $jdbc with attribute $attrs"
+      set temp [catch {$AdminConfig create DataSource $jdbc $attrs} ds]
+      puts "New DataSource is $ds"
+ 
+      if {$dsPropSetNum != "0"} {
+         # create the J2EEResourcePropertySet
+         puts "Creating the J2EEResourcePropertySet for DataSource"
+         set temp [catch {$AdminConfig create J2EEResourcePropertySet $ds {}} dsPropSet]
+         puts "New J2EEResourcePropertySet is $dsPropSet"
+         # create all the J2EEResourceProperties
+         puts stdout "Res length [llength $dsResPropNum]"
+         puts stdout "Name length [llength $dsResNameList]"
+         puts stdout "Description length [llength $dsResDescList]"
+         puts stdout "Required length [llength $dsResReqList]"
+         puts stdout "Type length [llength $dsResTypeList]"
+         puts stdout "Value length [llength $dsResValueList]"
+
+         for {set j 0} {$j < $dsResPropNum} {incr j 1} {
+            set name [list name [lindex $dsResNameList $j]]
+            set desc [list description [lindex $dsResDescList $j]]
+            set req [list required [lindex $dsResReqList $j]]
+            set type [list type [lindex $dsResTypeList $j]]
+            set value [list value [lindex $dsResValueList $j]]
+            set attr [list $name $desc $req $type $value]
+            puts "Creating new J2EEResourceProperty for $dsPropSet using attributes $attr"
+            set temp [catch {$AdminConfig create J2EEResourceProperty $dsPropSet $attr} resProp]
+            puts "New J2EEResourceProperty is $resProp"
+         }
+      } 
+   }
+}
+
+
+if {$argc != 8} {
+   puts "importJDBCProvider: This script requires 8 parameters: import directory, jdbc name, scope, node, server, classpath, nativepath and authAlias"
+   puts "eg: importJDBCProvider c:/importDir myjdbc Server MyNode server1 c:/sqllib/db2j.jar c:/temp mynode/myalias"
+} else {
+   set importDir [lindex $argv 0]
+   set jdbcName [lindex $argv 1]
+   set scope [lindex $argv 2]
+   set node [lindex $argv 3]
+   set server [lindex $argv 4]
+   set cp [lindex $argv 5]
+   set np [lindex $argv 6]
+   set authAlias [lindex $argv 7]
+   puts "Importing JDBCProvider $jdbcName on scope $scope node $node server $server $cp $np $authAlias"
+   source $importDir/jdbcDatasFile.jacl
+   importJDBCProvider $jdbcName $scope $node $server $cp $np $authAlias
+   set temp [catch {$AdminConfig save} saveResult]
+   puts "Save result $saveResult"
+}
+

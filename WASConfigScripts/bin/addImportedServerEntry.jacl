@@ -1,0 +1,45 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# This step is necessary to add the imported server entry
+# to serverindex.xml then the new created server will be
+# overwritten with the imported server and all the end points
+# will be updated to correspond with the imported server
+#-----------------------------------------------------------
+
+proc addServerEntry {cell node appServer} {
+   global AdminConfig
+
+   # create new imported server to add server entry in $node serverindex file
+   # then all the files will be overwritten by the source imported server
+   # and all end point will be updated to reflect to the imported server end points
+   set temp [catch {$AdminConfig getid /Cell:$cell/Node:$node/} nodeId]
+   puts "Node config id is $nodeId"
+   # check if the server exist already in the target machine
+   set temp [catch {$AdminConfig getid /Cell:$cell/Node:$node/Server:$appServer/} s]
+   if {$s == "" || $s == {}} {
+      set temp [catch {$AdminConfig create Server $nodeId [subst {{name $appServer}}]} newServer]
+      puts "New server created is $newServer"
+   } else {
+      puts "Server $appServer on node $node exist in target machine"
+      puts "The server id is $s"
+      puts "This may cause the target server configuration data will get overwritten with the imported server configuration data" 
+   }
+}
+
+if {$argc != 3} {
+   puts "addImportedServerEntry: This script requires 3 parameters: cell, node, and application server"
+   puts "eg: addImportedServerEntry targetCell targetNode server1"
+} else {
+   set cell [lindex $argv 0]
+   set node [lindex $argv 1]
+   set appServer [lindex $argv 2]
+   puts "Adding imported server entry on cell $cell node $node serverindex"
+   addServerEntry $cell $node $appServer
+   set temp [catch {$AdminConfig save} saveResult]
+   puts "Save result $saveResult"
+}
+

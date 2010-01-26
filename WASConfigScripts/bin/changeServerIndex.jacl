@@ -1,0 +1,93 @@
+#----------------------------------------------------------------------------------
+# This program may be used, executed, copied, modified and distributed
+# without royalty for the purpose of developing, using, marketing, or distribution
+#----------------------------------------------------------------------------------
+
+#-----------------------------------------------------------
+# This script is part of import/export application commands.
+# Hence the script is not intended to be run alone.
+#
+# This script updates serverindex.xml on the target machine
+# to include the imported application.
+#-----------------------------------------------------------
+
+
+source appList.jacl
+global appList
+
+proc loadProperties {propFileName} {
+   java::import java.io.FileInputStream
+   java::import java.util.Properties
+
+   set fileprop [java::new Properties]
+   set fileStream [java::new FileInputStream $propFileName]
+   
+   puts "Property file will be loaded is $propFileName"
+   $fileprop load $fileStream
+   return $fileprop
+}
+
+proc changeServerIndex {importDir appname} {
+   global AdminConfig
+
+   set nameTag Name
+   set countTag Count
+   set nodeTag Node
+   set serverTag Server
+   set depTag Deployed
+
+   puts "Getting application data for $appname from property file" 
+   # get the data from the properties file 
+   puts "Loading deployedApp.properties file"
+   set props [loadProperties $importDir/deployedApp.properties]
+   set appName [$props getProperty $appname$nameTag]
+   set count [$props getProperty $appname$countTag]
+   set appString [$props getProperty $appname$depTag]
+   puts "Application name is $appName"
+   puts "Application installed on $count server"
+   puts "Application deployment is $appString" 
+
+   for {set i 0} {$i < $count} {incr i 1} {
+      set server [$props getProperty $appname$serverTag$i]
+      set node [$props getProperty $appname$nodeTag$i]
+      puts "Application installed on server $server"
+      puts "Application instaled on node $node"     
+
+      # updating serverindex.xml
+      set temp [catch {$AdminConfig getid /Node:$node/ServerIndex:/} si]
+      puts "Server index is $si"
+      set ses [lindex [$AdminConfig showAttribute $si serverEntries] 0]
+      puts "Server Entries is $ses"
+      foreach se $ses {
+         puts "Server Entry is $se"
+         set temp [catch {$AdminConfig showAttribute $se serverName} sName]
+         if {$sName == $server} {
+            puts "Server Name matched so modifying the deployment string to $appString"
+            set temp [catch {$AdminConfig modify $se [subst {{deployedApplications {$appString}}}]} modResult]
+            puts "Modify result $modResult"
+            set temp [catch {$AdminConfig save} saveResult]
+            puts "Save result $saveResult"
+         } 
+      }
+   } 
+}
+
+
+if {$argc != 1} {
+   puts "changeServerIndex: This script requires 1 parameter: import directory"
+   puts "eg: changeServerIndex /temp/importDir" 
+} else {
+   set importDir [lindex $argv 0]
+    
+   # change all the applications that get imported    
+   if {$appList != {} || $appList != ""} {
+      foreach app $appList {
+         puts "Changing ServerIndex file for imported application $app"
+         changeServerIndex $importDir $app
+      }
+   } else {
+      puts stdout "Cannot find any exported application. No update is required to serverindex.xml file"
+      exit 
+   }
+}
+
