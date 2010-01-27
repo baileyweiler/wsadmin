@@ -10,6 +10,7 @@ except:
 getJvmArguments = lambda x: AdminConfig.show(x, ['genericJvmArguments']).split('genericJvmArguments ')[1][1:-2]
 
 jvmList = [AdminConfig.getid("/Server:%s/JavaProcessDef:/JavaVirtualMachine:/" % jvm.split('(')[0]) for jvm in AdminConfig.list('Server').splitlines() if jvm.find(jvmSearch)>=0 ]
+sync = map(lambda x: AdminControl.invoke(AdminControl.completeObjectName('type=NodeSync,node=%s,*' % x), 'sync'), filter(lambda y: y.find('Manager') == -1, AdminConfig.list('Node').splitlines()))
 
 def addArgs(newArg, jvm, save):
   node = jvm.split('nodes/')[1].split('/')[0]
@@ -22,7 +23,8 @@ def addArgs(newArg, jvm, save):
     new = "%s %s" % (argList, newArg)
     AdminConfig.modify(jvm, [['genericJvmArguments', new]])
     if save:
-       print "save"
+      AdminConfig.save()
+      sync()
 
 def removeArgs(argSearch, jvm, save):
   argList = getJvmArguments(jvm)
@@ -33,7 +35,8 @@ def removeArgs(argSearch, jvm, save):
   AdminConfig.modify(jvm, [['genericJvmArguments', newArgList]])
   print "%s %s" % ('New',getJvmArguments(jvm))
   if save:
-    print "save"
+    AdminConfig.save()
+    sync()
 
 if __name__ == "main":
   if operation == 'add':
