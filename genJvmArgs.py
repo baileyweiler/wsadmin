@@ -1,4 +1,7 @@
 import sys
+if len(sys.argv) < 3:
+  print "hi"
+  sys.exit(1)
 argSearch=sys.argv[2]
 jvmSearch=sys.argv[1]
 operation=sys.argv[0]
