@@ -1,13 +1,23 @@
 import sys
 def usage:
-  pass
+  print "Usage:"
+  print "  sudo ./wsadmin.sh -lang jython -f genJvmArgs.py <add | remove> <jvm search> <partial arg or full (if adding)> [save]"
+  print ""
+  print "Example:"
+  print "  sudo ./wsadmin.sh -lang jython -f genJvmArgs.py add wps -Xmx1024m"
+  print ""
+  print "Note: Changes will only be saved if 'save' is specified."
+
 
 if len(sys.argv)<3:
-  print "hi"
+  usage()
   sys.exit(1)
-argSearch=sys.argv[2]
-jvmSearch=sys.argv[1]
-operation=sys.argv[0]
+try:
+  argSearch=sys.argv[2]
+  jvmSearch=sys.argv[1]
+  operation=sys.argv[0]
+except:
+  usage()
 
 try:
   save=sys.argv[3]
