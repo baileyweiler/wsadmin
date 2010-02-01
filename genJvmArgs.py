@@ -1,4 +1,7 @@
 import sys
+def usage:
+  pass
+
 if len(sys.argv)<3:
   print "hi"
   sys.exit(1)
